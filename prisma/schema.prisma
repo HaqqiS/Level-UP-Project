@@ -1,0 +1,392 @@
+// Prisma schema — Calisthenics Quest
+// See docs/ARCHITECTURE.md for the full data model.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Better Auth core ───────────────────────────────────────────────
+
+model User {
+  id            String       @id
+  name          String
+  email         String       @unique
+  emailVerified Boolean      @default(false)
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  profile       Profile?
+  bodyMetrics   BodyMetric[]
+  aiUsages      AiUsage[]
+  weeklyPlans   WeeklyPlan[]
+  dailyCheckins DailyCheckin[]
+  workoutLogs   WorkoutLog[]
+  quests        Quest[]
+  xpEvents      XpEvent[]
+  stats         UserStats?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─── App domain ─────────────────────────────────────────────────────
+
+enum ExperienceLevel {
+  NONE
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum MetricType {
+  WEIGHT
+  HEIGHT
+}
+
+model Profile {
+  id                    String          @id @default(cuid())
+  userId                String          @unique
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experienceLevel       ExperienceLevel
+  maxPushups            Int?
+  maxPullups            Int?
+  plankSeconds          Int?
+  goals                 String[]
+  equipment             String[]
+  trainingDays          Int[]
+  sessionMinutes        Int
+  injuries              String[]
+  injuryNotes           String?
+  birthYear             Int?
+  sex                   String?
+  locale                String          @default("en")
+  timezone              String          @default("Asia/Jakarta")
+  disclaimerAcceptedAt  DateTime?
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@map("profile")
+}
+
+model BodyMetric {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       MetricType
+  value      Decimal    @db.Decimal(6, 2)
+  unit       String
+  measuredAt DateTime   @default(now())
+
+  @@index([userId, type, measuredAt])
+  @@map("body_metric")
+}
+
+enum MovementPattern {
+  PUSH
+  PULL
+  LEGS
+  CORE
+  SKILL
+  MOBILITY
+}
+
+enum ExerciseMeasure {
+  REPS
+  SECONDS
+}
+
+enum ExerciseStatus {
+  VERIFIED
+  UNVERIFIED
+}
+
+enum ExerciseSource {
+  SEED
+  AI
+}
+
+enum AiUsageKind {
+  WEEKLY
+  DAILY
+  DISCOVERY
+}
+
+model Exercise {
+  id                String          @id @default(cuid())
+  slug              String          @unique
+  name              String
+  pattern           MovementPattern
+  difficulty        Int
+  equipment         String[]
+  measure           ExerciseMeasure @default(REPS)
+  cues              String[]
+  contraindications String[]
+  progressionNextId String?
+  progressionNext   Exercise?       @relation("ExerciseProgression", fields: [progressionNextId], references: [id], onDelete: SetNull)
+  progressionPrev   Exercise[]        @relation("ExerciseProgression")
+  plannedExercises  PlannedExercise[]
+  setLogs           SetLog[]
+  status            ExerciseStatus    @default(VERIFIED)
+  source            ExerciseSource  @default(SEED)
+  sourceUrl         String?
+  license           String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([pattern, status, difficulty])
+  @@map("exercise")
+}
+
+model AiUsage {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      AiUsageKind
+  date      String
+  tokens    Int         @default(0)
+  success   Boolean
+  createdAt DateTime    @default(now())
+
+  @@index([userId, kind, date])
+  @@map("ai_usage")
+}
+
+enum PlanStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model WeeklyPlan {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart    DateTime
+  status       PlanStatus       @default(ACTIVE)
+  aiModel      String
+  notes        String?
+  rawJson      Json?
+  fallbackUsed Boolean          @default(false)
+  sessions     PlannedSession[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([userId, status])
+  @@map("weekly_plan")
+}
+
+model PlannedSession {
+  id             String            @id @default(cuid())
+  weeklyPlanId   String
+  weeklyPlan     WeeklyPlan        @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int
+  date           DateTime
+  focus          String
+  notes          String?
+  isRest         Boolean           @default(false)
+  isAdjusted     Boolean           @default(false)
+  baselineVolume Int               @default(0)
+  exercises      PlannedExercise[]
+  dailyCheckin   DailyCheckin?
+  workoutLogs    WorkoutLog[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([weeklyPlanId, dayOfWeek])
+  @@index([date])
+  @@map("planned_session")
+}
+
+model PlannedExercise {
+  id               String         @id @default(cuid())
+  plannedSessionId String
+  plannedSession   PlannedSession @relation(fields: [plannedSessionId], references: [id], onDelete: Cascade)
+  exerciseId       String
+  exercise         Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  order            Int
+  sets             Int
+  targetReps       Int?
+  targetSeconds    Int?
+  restSeconds      Int            @default(60)
+
+  @@index([plannedSessionId, order])
+  @@map("planned_exercise")
+}
+
+model DailyCheckin {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plannedSessionId String         @unique
+  plannedSession   PlannedSession @relation(fields: [plannedSessionId], references: [id], onDelete: Cascade)
+  date             String
+  energy           Int
+  soreness         Int
+  painAreas        String[]
+  minutesAvailable Int
+  aiNote           String?
+  fallbackUsed     Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+
+  @@unique([userId, date])
+  @@map("daily_checkin")
+}
+
+enum QuestType {
+  DAILY
+  SIDE
+  WEEKLY
+}
+
+enum QuestStatus {
+  PENDING
+  COMPLETED
+}
+
+enum XpSource {
+  SESSION
+  QUEST
+  STREAK
+  BADGE
+}
+
+model WorkoutLog {
+  id               String          @id @default(cuid())
+  clientId         String          @unique @default(uuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plannedSessionId String?
+  plannedSession   PlannedSession? @relation(fields: [plannedSessionId], references: [id], onDelete: SetNull)
+  date             String
+  startedAt        DateTime        @default(now())
+  completedAt      DateTime?
+  durationSeconds  Int?
+  sets             SetLog[]
+  createdAt        DateTime        @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, completedAt])
+  @@map("workout_log")
+}
+
+model SetLog {
+  id           String     @id @default(cuid())
+  clientId     String     @unique @default(uuid())
+  workoutLogId String
+  workoutLog   WorkoutLog @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  setNumber    Int
+  reps         Int?
+  seconds      Int?
+  rpe          Int?
+  completedAt  DateTime   @default(now())
+
+  @@unique([workoutLogId, exerciseId, setNumber])
+  @@index([exerciseId])
+  @@map("set_log")
+}
+
+model Quest {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      QuestType
+  key       String
+  title     String
+  target    Int         @default(1)
+  progress  Int         @default(0)
+  status    QuestStatus @default(PENDING)
+  date      String
+  xpReward  Int
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([userId, key, date])
+  @@index([userId, date, status])
+  @@map("quest")
+}
+
+model XpEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    XpSource
+  amount    Int
+  refId     String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, source, refId])
+  @@index([userId, createdAt])
+  @@map("xp_event")
+}
+
+model UserStats {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalXp          Int      @default(0)
+  level            Int      @default(1)
+  currentStreak    Int      @default(0)
+  longestStreak    Int      @default(0)
+  freezesAvailable Int      @default(1)
+  freezeWeekKey    String?
+  lastActiveDate   String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("user_stats")
+}

@@ -1,0 +1,246 @@
+import "server-only";
+import { google } from "@ai-sdk/google";
+import { generateObject } from "ai";
+import {
+	computeSessionVolume,
+	enforceDailyAdjustmentBounds,
+	type NormalizedPlannedExercise,
+	type PlanExerciseMeta,
+} from "@/lib/ai/plan-safety";
+import {
+	AdjustedSessionAiSchema,
+	type DailyCheckinInput,
+	DailyCheckinInputSchema,
+} from "@/lib/ai/plan-schema";
+import { db } from "@/lib/db";
+import "@/lib/env";
+import { filterEligibleExercises } from "@/lib/exercises/eligibility";
+import { assertCanGeneratePlan } from "@/server/services/plan-gate";
+import { getLocalDateKey } from "@/server/services/weekly-plan-service";
+
+const AI_MODEL_ID = "gemini-2.5-flash";
+
+export type CheckinResult =
+	| { ok: true; fallbackUsed: boolean; aiNote: string | null }
+	| {
+			ok: false;
+			reason: "invalid" | "not_found" | "rest_day" | "already_checked_in";
+	  };
+
+export async function submitDailyCheckinAndAdjust(params: {
+	userId: string;
+	input: DailyCheckinInput;
+}): Promise<CheckinResult> {
+	const parsed = DailyCheckinInputSchema.safeParse(params.input);
+	if (!parsed.success) {
+		return { ok: false, reason: "invalid" };
+	}
+
+	const { userId } = params;
+	const data = parsed.data;
+	const profile = await db.profile.findUnique({ where: { userId } });
+	assertCanGeneratePlan(profile);
+	if (!profile) throw new Error("Profile missing");
+
+	const session = await db.plannedSession.findUnique({
+		where: { id: data.sessionId },
+		include: {
+			weeklyPlan: { select: { userId: true } },
+			dailyCheckin: { select: { id: true } },
+			exercises: {
+				orderBy: { order: "asc" },
+				include: {
+					exercise: { select: { id: true, name: true } },
+				},
+			},
+		},
+	});
+
+	if (!session || session.weeklyPlan.userId !== userId) {
+		return { ok: false, reason: "not_found" };
+	}
+	if (session.isRest) {
+		return { ok: false, reason: "rest_day" };
+	}
+
+	const todayKey = getLocalDateKey(profile.timezone);
+	const existingToday = await db.dailyCheckin.findUnique({
+		where: { userId_date: { userId, date: todayKey } },
+		select: { id: true },
+	});
+	if (session.dailyCheckin || existingToday) {
+		return { ok: false, reason: "already_checked_in" };
+	}
+
+	const allExercises = await db.exercise.findMany({
+		select: {
+			id: true,
+			name: true,
+			pattern: true,
+			difficulty: true,
+			equipment: true,
+			measure: true,
+			contraindications: true,
+			status: true,
+			progressionNextId: true,
+		},
+	});
+
+	const eligibleExercises: PlanExerciseMeta[] = filterEligibleExercises(
+		allExercises,
+		{
+			experienceLevel: profile.experienceLevel,
+			equipment: profile.equipment,
+			injuries: profile.injuries,
+		},
+	);
+
+	const painSet = new Set<string>(data.painAreas);
+	const painSafeEligible = eligibleExercises.filter(
+		(ex) => !ex.contraindications.some((area) => painSet.has(area)),
+	);
+
+	const plannedNormalized: NormalizedPlannedExercise[] = session.exercises.map(
+		(ex) => ({
+			exerciseId: ex.exerciseId,
+			sets: ex.sets,
+			targetReps: ex.targetReps,
+			targetSeconds: ex.targetSeconds,
+			restSeconds: ex.restSeconds,
+		}),
+	);
+
+	const baselineVolume =
+		session.baselineVolume > 0
+			? session.baselineVolume
+			: computeSessionVolume(plannedNormalized);
+
+	const prompt = [
+		"You are adjusting today's calisthenics workout based on the user's pre-workout check-in.",
+		`Planned focus: ${session.focus}`,
+		`Check-in: energy=${data.energy}/5, soreness=${data.soreness}/5, availableMinutes=${data.minutesAvailable}`,
+		data.painAreas.length > 0
+			? `Current pain areas (MUST avoid contraindicated exercises): ${data.painAreas.join(", ")}`
+			: "No pain reported today.",
+		`Baseline volume: ${baselineVolume} (keep adjusted volume strictly within -40% to +15%).`,
+		"",
+		"Current planned exercises:",
+		JSON.stringify(
+			session.exercises.map((e) => ({
+				exerciseId: e.exerciseId,
+				name: e.exercise.name,
+				sets: e.sets,
+				targetReps: e.targetReps,
+				targetSeconds: e.targetSeconds,
+				restSeconds: e.restSeconds,
+			})),
+		),
+		"",
+		"Pain-safe eligible exercise pool (ONLY pick exerciseId from here):",
+		JSON.stringify(
+			painSafeEligible.map((e) => ({
+				id: e.id,
+				name: e.name,
+				pattern: e.pattern,
+				difficulty: e.difficulty,
+				measure: e.measure,
+			})),
+		),
+	].join("\n");
+
+	let tokens = 0;
+
+	try {
+		const response = await generateObject({
+			model: google(AI_MODEL_ID),
+			schema: AdjustedSessionAiSchema,
+			prompt,
+			abortSignal: AbortSignal.timeout(15_000),
+		});
+		tokens = response.usage?.totalTokens ?? 0;
+
+		const safe = enforceDailyAdjustmentBounds({
+			plannedExercises: plannedNormalized,
+			candidate: response.object,
+			eligibleExercises,
+			painAreas: data.painAreas,
+			baselineVolume,
+		});
+
+		await db.$transaction(async (tx) => {
+			await tx.plannedExercise.deleteMany({
+				where: { plannedSessionId: session.id },
+			});
+			await tx.plannedSession.update({
+				where: { id: session.id },
+				data: {
+					focus: safe.focus,
+					notes: safe.notes,
+					isAdjusted: true,
+					exercises: {
+						create: safe.exercises.map((ex, index) => ({
+							exerciseId: ex.exerciseId,
+							order: index,
+							sets: ex.sets,
+							targetReps: ex.targetReps,
+							targetSeconds: ex.targetSeconds,
+							restSeconds: ex.restSeconds,
+						})),
+					},
+				},
+			});
+			await tx.dailyCheckin.create({
+				data: {
+					userId,
+					plannedSessionId: session.id,
+					date: todayKey,
+					energy: data.energy,
+					soreness: data.soreness,
+					painAreas: data.painAreas,
+					minutesAvailable: data.minutesAvailable,
+					aiNote: safe.notes,
+					fallbackUsed: false,
+				},
+			});
+			await tx.aiUsage.create({
+				data: {
+					userId,
+					kind: "DAILY",
+					date: todayKey,
+					tokens,
+					success: true,
+				},
+			});
+		});
+
+		return { ok: true, fallbackUsed: false, aiNote: safe.notes };
+	} catch {
+		// On AI failure or timeout (> 15s), leave planned session unchanged per PRD.
+		await db.$transaction([
+			db.dailyCheckin.create({
+				data: {
+					userId,
+					plannedSessionId: session.id,
+					date: todayKey,
+					energy: data.energy,
+					soreness: data.soreness,
+					painAreas: data.painAreas,
+					minutesAvailable: data.minutesAvailable,
+					aiNote: null,
+					fallbackUsed: true,
+				},
+			}),
+			db.aiUsage.create({
+				data: {
+					userId,
+					kind: "DAILY",
+					date: todayKey,
+					tokens,
+					success: false,
+				},
+			}),
+		]);
+
+		return { ok: true, fallbackUsed: true, aiNote: null };
+	}
+}
