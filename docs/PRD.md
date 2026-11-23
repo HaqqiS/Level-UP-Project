@@ -36,7 +36,7 @@ Primary users today: the owner and family members.
 - As a new user, I must accept a health disclaimer before receiving a plan.
 
 ### Navigation & Appearance
-- As a mobile user, I navigate via a floating translucent Apple HIG–inspired 4-tab bottom bar (`Train`, `Calendar`, `Exercises`, `Profile`).
+- As a mobile user, I navigate via a floating translucent Apple HIG–inspired 4-tab bottom bar (`Train`, `Calendar`, `Exercises`, `Profile`) paired with a unified **Card-Only UI** surface system (`<Card size="sm">` containers + borderless tonal sub-tiles).
 - As a user, I can switch between **Light**, **Dark**, and **System** themes exclusively from `/profile` → `Settings`, with high-contrast semantic colors across all controls and visualizations.
 
 ### Unified Train Hub (`Today + Logger + Weekly Plan` at `/today`)
@@ -44,7 +44,7 @@ Primary users today: the owner and family members.
 - Legacy routes (`/plan`, `/log`) redirect cleanly to `/today`.
 
 ### Weekly Plan (AI)
-- As a user, I get a 7‑day plan that matches my level, equipment, schedule, and—when enabled—my predicted menstrual cycle phase (`menstrual`, `follicular`, `ovulatory`, `luteal`) and recent wellness logs.
+- As a user, I get a 7‑day plan generated via the Gemini fallback chain (`gemini-3.8-flash` → `gemini-3.1-flash-lite` → `gemini-3.5-flash-lite`) that matches my level, equipment, schedule, and—when enabled—my predicted menstrual cycle phase (`menstrual`, `follicular`, `ovulatory`, `luteal`) and recent wellness logs, with a **"Regenerate with AI"** retry button if a rule-based fallback plan is active.
 - As a user, each new week's plan is slightly more advanced based on what I actually logged.
 
 ### Daily Check‑in & Wellness Adaptation (AI)
@@ -56,15 +56,15 @@ Primary users today: the owner and family members.
 - As a user, I see today's quest (session + 1–2 side quests) and weekly quests, and earn XP when I complete them.
 - As a user, I level up, keep a streak, and rest days don't break it.
 - As a user, I can clearly see and use one streak freeze per week (polished freeze indicator & interaction).
-- As a user, I can opt in to **Push Reminders** in `/profile` → `Settings` so I get a Web Push notification on my scheduled training days if I haven't logged a session yet, plus optional H-2 upcoming period reminders when cycle tracking is enabled.
+- As a user, I can opt in to **Push Reminders** in `/profile` → `Settings` (with preset times or a 24-hour **ReUI `TimePicker`** for custom time) so I get a Web Push notification on my scheduled training days if I haven't logged a session yet, plus optional H-2 upcoming period reminders when cycle tracking is enabled.
 
 ### Workout Logger & Anatomical Muscle Map / Heatmap
 - As a user, I log sets, reps, or duration per exercise quickly with one hand, even offline (synced automatically when back online without UI flicker); the exercise accordion advances to the next exercise only after completing all target sets of the current exercise.
 - As a user, I see a front & back **26-region Anatomical Muscle Map / Heatmap** (`Primary`, `Secondary`, `Untargeted`) on `/today` that automatically adapts to Male or Female anatomy (`profile.sex`), supports hover tooltips/outlines, toggles between `Logged` and `Planned` modes across `Today` / `Weekly` / `30 Days` scopes, and opens a `MuscleBreakdownSheet` on tap.
 
 ### Exercise Library & 3-Tier DAG Skill Tree (`/exercises`)
-- As a user, I can browse 98 curated calisthenics exercises in a list view, inspect exercise details with an anatomical target-muscle preview, and see an `"unverified"` warning on AI-discovered exercises.
-- As a user, I can switch to an interactive **Skill Tree** (dot-grid pan/zoom canvas or tier list) per movement pattern (`Pull`, `Push`, `Legs`, `Core`, `Skill`, `Mobility`) showing each progression node's deterministic status (`Locked`, `On going`, `Mastered`) and 3-tier mastery benchmarks (`Bronze`, `Silver`, `Gold`) based on my logged workouts.
+- As a user, I can browse **116** curated calisthenics exercises (including **18** zero-equipment `Never trained` foundation exercises) in a list view with non-scrollable full-width pattern tabs, inspect exercise details with an anatomical target-muscle preview, and see an `"unverified"` warning on AI-discovered exercises.
+- As a user, I can switch to an interactive global-tier compacted bottom-up **Skill Tree** (dot-grid pan/zoom canvas or tier list) per movement pattern (`Pull`, `Push`, `Legs`, `Core`, `Skill`, `Mobility`) showing each progression node's deterministic status (`Locked`, `On going`, `Mastered`) and 3-tier mastery benchmarks (`Bronze`, `Silver`, `Gold`) based on my logged workouts.
 
 ### Calendar Wellness Tracker (`/calendar`)
 - As a user, I view a clean borderless monthly calendar + synced 7-day week strip where:
@@ -75,13 +75,13 @@ Primary users today: the owner and family members.
   - **Period Tracker** (`Light`, `Medium`, `Heavy`, `Super heavy` + cramp intensity) and **Cycle History** sheet — visible only when Period Tracking is enabled
   - **Pain Tracker** (`Pain free`, `Cramps`, `Ovulation`, `Breast tenderness`, `Headache`, `Migraine`, `Migraine with aura`, `Lower back`, `Leg`, `Joint` + severity) — female-specific tags visible only when Period Tracking is enabled
   - **Supplements** & **Medications** (presets + custom archivable items)
-  - **Sleep Duration** (`sleep time` – `wake up time`, auto-computed duration + sleep quality)
+  - **Sleep Duration** (24-hour **ReUI `TimePicker`** for `sleep time` – `wake up time`, auto-computed duration + sleep quality)
   - **Readiness & Notes** (energy, stress, mood tags, hydration, daily notes)
 
 ### Profile & Body Tracking (`/profile`)
 - As a user, I navigate a clean 3-tab **Profile** hub (`/profile`):
   - **Overview:** compact identity card + Achievements grid.
-  - **Body:** weight log, 30d/90d trend chart, and body measurements (`WAIST`/`CHEST`/`ARM`).
+  - **Body:** KPI summary, unified **Log weight** card with collapsible *Recent entries*, 30d/90d trend chart, and batch **Body measurements** (`Waist`, `Chest`, `Arm` saved together) with collapsible grouped *Measurement history*.
   - **Settings:** Appearance theme selector (`Light`/`Dark`/`System`), iOS-style grouped Preferences (Cycle & Period sheet, Push Reminders sheet), Account actions (Redo onboarding, Sign out), and a Danger Zone **Delete account** flow that permanently erases all account data (PostgreSQL cascade + browser push unsubscribe + offline IndexedDB clear).
 - Legacy route (`/body`) redirects cleanly to `/profile?tab=body`.
 
@@ -92,7 +92,7 @@ Primary users today: the owner and family members.
 | **MVP** | Done | Google login · onboarding + disclaimer · AI weekly plan · daily check‑in + AI adjust · daily quest · workout logger · XP/level/streak (basic) · weight log + chart · exercise library (seed + AI discovery) · EN UI with i18n structure |
 | **v1** | Done | Offline logging + sync (Dexie) · PWA (Serwist, manifest, icons, install prompt) · weekly quests · badges/achievements · body measurements (`WAIST`, `CHEST`, `ARM`) |
 | **v1.5** | Done | Route consolidation (`Today + Plan + Log` → `/today`, `Body + Profile` → `/profile`, 4-tab Bottom Nav) · onboarding card refinement · streak freeze UI polish · Push reminders (Web Push VAPID + scheduled cron) |
-| **v2** | Done | Relational v2 schema · period-aware onboarding & AI planner (luteal-anchored cycle phases, H-2 push reminders, no fertile window) · borderless filterable Calendar wellness tracker (`/calendar`) with debounced auto-save, custom items & cycle history · 26-region Male/Female MIT anatomical Muscle Map (`Logged`/`Planned`, `Today`/`Weekly`/`30d`, hover tooltip & breakdown sheet) · 98-exercise 3-tier (`Bronze`/`Silver`/`Gold`) DAG Skill Tree · Light/Dark/System theme (`next-themes`) · Apple HIG floating tab bar · 3-tab `/profile` hub + permanent Delete Account |
+| **v2** | Done | Relational v2 schema · period-aware onboarding & AI planner (luteal-anchored cycle phases, H-2 push reminders, no fertile window) · Gemini 3.8 Flash fallback chain (`gemini-3.8-flash` → `gemini-3.1-flash-lite` → `gemini-3.5-flash-lite`) + `"Regenerate with AI"` retry · borderless filterable Calendar wellness tracker (`/calendar`) with debounced auto-save, custom items & cycle history · 26-region Male/Female MIT anatomical Muscle Map (`Logged`/`Planned`, `Today`/`Weekly`/`30d`, hover tooltip & breakdown sheet) · 116-exercise 3-tier (`Bronze`/`Silver`/`Gold`) DAG Skill Tree (18 zero-equipment foundations & global-tier compaction) · Light/Dark/System theme (`next-themes`) · Apple HIG floating tab bar & Card-Only UI remodel · ReUI `TimePicker` (Sleep Duration & Push Reminders) · batch Body Measurements & collapsible history · 3-tab `/profile` hub + permanent Delete Account |
 | **v2.5** | Planned | Dashboard metrics *(to be designed next)* |
 | **Later** | Planned | Indonesian localization (`messages/id.json` + language switcher) · data export (JSON/CSV) · exercise videos · social/leaderboard · production deployment |
 
@@ -101,7 +101,7 @@ Primary users today: the owner and family members.
 ### MVP & v1 (Delivered)
 - **Auth & Onboarding:** Unauthenticated users redirect to sign‑in (Google only); plan generation is blocked until onboarding and disclaimer are complete.
 - **Weekly Plan:** Covers exact chosen training days; references only eligible `exercise` IDs; advances ≤ 1 progression step/movement and ≤ 10% weekly volume; retries once on invalid Zod output, then uses rule‑based fallback.
-- **Daily Adjustment:** Max 1 AI adjustment/user/day; volume stays within **−40% / +15%**; timeout (> 15 s) or error falls back to planned session.
+- **Daily Adjustment:** Max 1 AI adjustment/user/day; volume stays within **−40% / +15%**; per-model fallback chain (`30s → 20s → 20s`) or total failure falls back to planned session.
 - **Exercise Library:** `unverified` exercises show a warning label and are excluded for beginners.
 - **Gamification:** XP, level, and streak are computed deterministically in server code from logs; rest days never reset streaks; 1 freeze per ISO week.
 - **Logger, Offline & Body:** Set logged in ≤ 2 taps; offline queue persists in Dexie and syncs idempotently; weight renders on 30d/90d line chart; measurements (`WAIST`, `CHEST`, `ARM`) supported.
@@ -109,14 +109,14 @@ Primary users today: the owner and family members.
 ### v1.5 (Delivered)
 - **Navigation & Consolidation:** Bottom Nav uses 4 tabs (`Train` `/today`, `Calendar` `/calendar`, `Exercises` `/exercises`, `Profile` `/profile`). Legacy `/plan`, `/log`, and `/body` redirect cleanly without broken links.
 - **Onboarding & Streak Polish:** Onboarding cards follow consistent ReUI styling; streak freeze state and weekly availability are clearly surfaced in UI.
-- **Push Reminders:** Users can enable/disable Web Push notifications and pick a preferred reminder time in `/profile` → `Settings`; `/api/cron/reminders` (protected by `CRON_SECRET`) sends reminders on scheduled `trainingDays` when today's session is incomplete, plus H-2 period reminders when opted in.
+- **Push Reminders:** Users can enable/disable Web Push notifications and pick a preferred preset or custom time (via 24h ReUI `TimePicker`) in `/profile` → `Settings`; `/api/cron/reminders` (protected by `CRON_SECRET`) sends reminders on scheduled `trainingDays` when today's session is incomplete, plus H-2 period reminders when opted in.
 
 ### v2 (Delivered)
-- **Period-Aware Onboarding & AI:** Optional menstrual cycle fields appear only for female users; luteal-anchored cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal`, with no fertile window) and daily wellness logs inform AI Weekly Plan and Daily Adjustment within safety bounds (`−40% / +15%` daily, `≤ 10%` weekly). Ongoing partial period logs never shrink configured `averagePeriodDays`, and Redo Onboarding hydrates existing profile/cycle state cleanly.
-- **Calendar Wellness Tracker:** One daily wellness log per user per date with debounced auto-save; Period section and female-specific pain tags are hidden unless Period Tracking is enabled; sleep duration calculates across midnight; borderless calendar grid reserves cell backgrounds for Workout done / Streak freeze, keeps Predicted period always visible, and toggles confirmed Period / Pain / Supplements / Medication indicators via clickable filter badges.
-- **Anatomical Muscle Map / Heatmap:** 98 seeded exercises map onto 26 relational muscle groups (`ExerciseMuscle`); Male/Female front & back SVG models auto-select from `profile.sex`, render `Primary`, `Secondary`, and `Untargeted` intensities across `Logged`/`Planned` modes and `Today`/`Weekly`/`30d` scopes, and provide hover tooltips, outlines, and tap-to-inspect `MuscleBreakdownSheet`.
-- **3-Tier DAG Skill Tree:** Node states (`Locked`, `On going`, `Mastered`) and `Bronze`/`Silver`/`Gold` mastery tiers are computed deterministically from `SetLog`, `ExerciseMasteryBenchmark`, and `ExerciseEdge`; interactive pan/zoom canvas and tier list open `ExerciseDetailSheet`.
-- **Theme, Navigation & Account Lifecycle:** Light/Dark/System themes work across all views with exclusive theme toggle in `/profile` → `Settings`; floating Apple HIG bottom tab bar adapts cleanly to both themes; permanent Delete Account requires typing `"DELETE"`, unsubscribes Web Push, deletes all user data transactionally in PostgreSQL, clears Dexie offline data, and signs out.
+- **Period-Aware Onboarding & AI:** Optional menstrual cycle fields appear only for female users; luteal-anchored cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal`, with no fertile window) and daily wellness logs inform AI Weekly Plan and Daily Adjustment within safety bounds (`−40% / +15%` daily, `≤ 10%` weekly) across the `gemini-3.8-flash` fallback chain (`30s → 20s → 20s`) before falling back to rule-based/planned defaults (with `"Regenerate with AI"` retry on fallback weekly plans). Ongoing partial period logs never shrink configured `averagePeriodDays`, and Redo Onboarding hydrates existing profile/cycle state cleanly.
+- **Calendar Wellness Tracker:** One daily wellness log per user per date with debounced auto-save; Period section and female-specific pain tags are hidden unless Period Tracking is enabled; sleep duration calculates across midnight using 24h ReUI `TimePicker` inputs; borderless calendar grid reserves cell backgrounds for Workout done / Streak freeze, keeps Predicted period always visible, and toggles confirmed Period / Pain / Supplements / Medication indicators via clickable filter badges.
+- **Anatomical Muscle Map / Heatmap:** 116 seeded exercises map onto 26 relational muscle groups (`ExerciseMuscle`, 506 mappings); Male/Female front & back SVG models auto-select from `profile.sex`, render `Primary`, `Secondary`, and `Untargeted` intensities across `Logged`/`Planned` modes and `Today`/`Weekly`/`30d` scopes, and provide hover tooltips, outlines, and tap-to-inspect `MuscleBreakdownSheet`.
+- **3-Tier DAG Skill Tree:** 116 exercises (including 18 zero-equipment `Never trained` foundations), 348 `Bronze`/`Silver`/`Gold` mastery benchmarks, and 121 `ExerciseEdge` prerequisites evaluate deterministically (`Locked`, `On going`, `Mastered`) from `SetLog`; global-tier compacted pan/zoom canvas and tier list open `ExerciseDetailSheet`, while List View uses non-scrollable full-width pattern tabs.
+- **UI System, Body History & Account Lifecycle:** Unified **Card-Only UI** (`<Card size="sm">` + borderless tonal sub-tiles) and Light/Dark/System themes work across all views with exclusive theme toggle in `/profile` → `Settings`; `/profile?tab=body` batches `Waist`/`Chest`/`Arm` measurements atomically and places *Recent entries* / *Measurement history* inside shared collapsibles; permanent Delete Account requires typing `"DELETE"`, unsubscribes Web Push, deletes all user data transactionally in PostgreSQL, clears Dexie offline data, and signs out.
 
 ## 6. Health & Safety
 

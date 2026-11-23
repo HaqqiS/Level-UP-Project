@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TD
-  C["PWA Client (Next.js 16 + shadcn/ui base-luma + ReUI + next-themes)"] --> SA["Server Actions / Route Handlers"]
+  C["PWA Client (Next.js 16 + shadcn/ui base-luma + ReUI + Card-Only UI + next-themes)"] --> SA["Server Actions / Route Handlers"]
   C <--> SW["Service Worker (Serwist)"]
   C <--> DX["Dexie (IndexedDB, offline queue)"]
   CRON["Scheduled Cron (/api/cron/reminders)"] --> WP["Web Push (VAPID)"]
@@ -12,7 +12,7 @@ flowchart TD
   SA --> BA["Better Auth (Google)"]
   SA --> GE["Gamification & 3-Tier DAG Skill Engine (pure TS)"]
   SA --> WE["Cycle & Wellness Engine (pure TS)"]
-  SA --> AI["AI Service (Gemini + Zod)"]
+  SA --> AI["AI Service (AI SDK v7 · Gemini 3.8 Flash fallback chain + Zod)"]
   AI --> EX["Exercise Ingestion"]
   EX --> EXT["Curated Seed + Google Search grounding"]
   SA --> DB[("Supabase PostgreSQL via Prisma 7")]
@@ -41,14 +41,15 @@ src/
 │       └── cron/reminders/route.ts   # Scheduled training & H-2 period Web Push trigger
 ├── components/
 │   ├── ui/               # shadcn/ui (base-luma, @base-ui/react)
-│   ├── reui/             # ReUI primitives + DatePicker
+│   ├── reui/             # ReUI primitives (DatePicker, TimePicker, NumberField, Badge, Alert, etc.)
 │   ├── theme-provider.tsx # next-themes provider + dynamic meta theme-color sync
 │   └── features/         # auth, body, calendar, exercises, gamification, logger, muscles, onboarding, plan, profile, push, pwa, shell
 ├── i18n/                 # next-intl request config
 ├── lib/
 │   ├── auth/             # Better Auth server + client + email allowlist
 │   ├── db/               # Prisma 7 client singleton (@prisma/adapter-pg)
-│   ├── ai/               # prompts, Zod schemas, safety bounds
+│   ├── ai/               # model fallback chain (model-config.ts), wire & domain Zod schemas, safety bounds
+│   ├── body/             # BMI, weight trend points, batch measurement schemas & history grouping
 │   ├── exercises/        # eligibility, 26-region muscles, heatmap aggregator, DAG validator
 │   ├── gamification/     # xp, level, streak, quests, achievements, 3-tier skill tree & layout (pure TS)
 │   ├── wellness/         # luteal-anchored cycle engine, sleep duration, wellness schemas (pure TS)
@@ -63,7 +64,7 @@ messages/en.json          # id.json later
 prisma/
 ├── schema.prisma
 ├── seed.ts
-└── seed-data/            # modular 98-exercise catalog (push, pull, legs, core, skill-mobility, edges)
+└── seed-data/            # modular 116-exercise catalog (foundations, push, pull, legs, core, skill-mobility, edges)
 ```
 
 ## 3. Data Model
@@ -123,27 +124,27 @@ Better Auth owns `user`, `session`, `account`, `verification`. All 16 user-owned
 
 ## 4. AI Flows
 
-### 4.1 Weekly plan
+### 4.1 Weekly plan & Model Fallback Chain
 
 ```mermaid
 sequenceDiagram
-  participant S as On-demand / New week
+  participant S as On-demand / New week / Retry
   participant P as PlanService
-  participant G as Gemini
+  participant C as AI_MODEL_CHAIN
   participant DB
-  S->>P: generateWeek(userId)
+  S->>P: generateWeek(userId) / retryWeeklyPlanWithAiAction
   P->>DB: profile, last 2 weeks logs, wellness/cycle phase, eligible exercises
-  P->>G: generateObject(prompt, WeeklyPlanSchema)
-  G-->>P: plan JSON
-  P->>P: Zod validate + safety bounds
-  alt invalid
-    P->>G: retry once
-    P->>P: else rule-based fallback
+  P->>C: generateText + Output.object (wire schema)
+  C-->>P: structured JSON (3.8-flash 30s → 3.1-flash-lite 20s → 3.5-flash-lite 20s)
+  P->>P: normalize wire → domain Zod + safety bounds
+  alt invalid or all models fail
+    P->>P: rule-based fallback (surfaces "Regenerate with AI" button)
   end
   P->>DB: save weekly_plan + sessions + quests
 ```
 
-Trigger: on-demand from `/today` and on first app open of a new week (lazy), not a cron, to keep infra simple. When `profile.tracksPeriod` is enabled, `PlanService` computes luteal-anchored cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal`) for each day of the week plus recent 14-day wellness trends so AI adapts intensity/volume while staying inside strict safety bounds.
+- **Client & Model Chain (`src/lib/ai/model-config.ts`, `src/server/services/ai-client.ts`):** Uses AI SDK v7 (`generateText` + `Output.object({ schema })`) across `AI_MODEL_CHAIN` (`gemini-3.8-flash` `30s` → `gemini-3.1-flash-lite` `20s` → `gemini-3.5-flash-lite` `20s`, `maxRetries: 0` per model) with lightweight Gemini wire schemas normalized into domain Zod schemas (`src/lib/ai/plan-schema.ts`, `src/lib/ai/exercise-schema.ts`).
+- **Triggers & Retry:** Triggered on-demand from `/today` and lazily on the first app open of a new week. When `fallbackUsed` is `true`, `/today` → Weekly Plan surfaces a **"Regenerate with AI"** button (`retryWeeklyPlanWithAiAction`). When `profile.tracksPeriod` is enabled, `PlanService` computes luteal-anchored cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal`) for each day of the week plus recent 14-day wellness trends so AI adapts intensity/volume within strict safety bounds.
 
 ### 4.2 Daily adjustment
 
@@ -151,7 +152,7 @@ Input: planned session + check‑in + today's `daily_wellness_log` (period flow,
 - Volume within **−40% / +15%** of planned.
 - Only exercises from the eligible set (same pattern, ±1 difficulty).
 - Pain areas (from check‑in and wellness log) → remove contraindicated exercises.
-- Limit: 1 per user per day (`ai_usage`). Timeout 15 s → planned session.
+- Limit: 1 per user per day (`ai_usage`). Per-model fallback chain (`30s → 20s → 20s`) before falling back to the planned session on total timeout/error.
 
 ### 4.3 Eligible exercise set
 
@@ -185,8 +186,8 @@ const WeeklyPlanSchema = z.object({
 
 ## 5. Exercise Ingestion & 26-Region Anatomical Muscle Map
 
-1. **Seed script** (`prisma/seed.ts` + `prisma/seed-data/{push,pull,legs,core,skill-mobility,edges}.ts`): seeds **98 curated calisthenics exercises**, **432 relational muscle mappings** (`ExerciseMuscle`) across **26 anatomical regions**, **294 3-tier mastery benchmarks** (`BRONZE`/`SILVER`/`GOLD`), and **90 DAG progression edges** (`ExerciseEdge`), validated for acyclicity before writing.
-2. **AI discovery** (when the eligible set lacks coverage for a pattern/level): Gemini with Google Search grounding → `ExerciseCandidateSchema` (including `primaryMuscles[]` & `secondaryMuscles[]`) → dedupe by slug and name similarity → reject if equipment/difficulty out of range → save as `UNVERIFIED` with `sourceUrl`.
+1. **Seed script** (`prisma/seed.ts` + `prisma/seed-data/{foundations,push,pull,legs,core,skill-mobility,edges}.ts`): seeds **116 curated calisthenics exercises** (`98` core progressions + `18` zero-equipment `Never trained` foundations), **506 relational muscle mappings** (`ExerciseMuscle`) across **26 anatomical regions**, **348 3-tier mastery benchmarks** (`BRONZE`/`SILVER`/`GOLD`), and **121 DAG progression edges** (`ExerciseEdge`), validated for acyclicity before writing.
+2. **AI discovery** (when the eligible set lacks coverage for a pattern/level): `generateGroundedSearchWithFallback` (`google.tools.googleSearch({})`) across `AI_MODEL_CHAIN`, followed by structured normalization to `ExerciseCandidateSchema` (including `primaryMuscles[]` & `secondaryMuscles[]`) → dedupe by slug and name similarity → reject if equipment/difficulty out of range → save as `UNVERIFIED` with `sourceUrl`.
 3. **Anatomical Body Map** (`src/components/features/muscles/`): zero-dependency front/back Male & Female SVG models ported under MIT license from `HichamELBSI/react-native-body-highlighter`, subdivided to cover all 26 `MuscleGroup` regions using native sub-paths and namespaced SVG `<clipPath>` splits. Automatically resolves gender from `profile.sex`, renders theme-aware OKLCH fills (`Primary`, `Secondary`, `Untargeted`), hover outlines, and pointer-following tooltips.
 
 ## 6. Gamification, Skill Tree & Cycle Engines
@@ -197,13 +198,14 @@ Pure, unit‑tested TypeScript modules in `src/lib/gamification`, `src/lib/exerc
 - **Level curve:** `xpForLevel(n) = 100 × n^1.5` (cumulative).
 - **Streak:** counts scheduled training days completed. Rest days are neutral. A missed training day consumes a freeze if available (1 per ISO week), otherwise resets.
 - **Quests & Achievements:** daily quest derived from today's planned session + side quests + weekly quests + deterministic achievement catalog.
-- **3-Tier DAG Skill Tree (`skill-tree.ts`, `skill-tree-layout.ts`):** evaluates `BRONZE`, `SILVER`, and `GOLD` mastery per exercise from `SetLog` history and unlocks downstream nodes via multi-parent `ExerciseEdge` prerequisites (`Locked`, `On going`, `Mastered`).
+- **3-Tier DAG Skill Tree (`skill-tree.ts`, `skill-tree-layout.ts`):** evaluates `BRONZE`, `SILVER`, and `GOLD` mastery per exercise from `SetLog` history, unlocks downstream nodes via multi-parent `ExerciseEdge` prerequisites (`Locked`, `On going`, `Mastered`), and uses global-tier compaction so `Never trained` foundation exercises anchor the lowest tier cleanly.
 - **Cycle & Wellness Engine (`cycle-engine.ts`, `cycle-and-wellness.ts`):** reconciles discrete daily period logs into `MenstrualCycle` episodes, computes luteal-anchored cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal` — no fertile window), protects configured `averagePeriodDays` / `averageCycleDays` against ongoing partial episodes, and predicts upcoming period windows.
 
-## 7. i18n & Theming
+## 7. i18n, Theming & UI Surface System
 
 - **i18n:** `next-intl` with locale‑agnostic routes (cookie/profile locale). `messages/en.json` now; `id.json` planned. AI responses use the user's locale.
 - **Theming:** `next-themes` (`attribute="class"`, `defaultTheme="system"`, `enableSystem`) wrapped in `src/components/theme-provider.tsx` with dynamic `<meta name="theme-color">` synchronization (`#fafafa` light / `#121212` dark) and `base-luma` OKLCH tokens in `src/app/globals.css`.
+- **UI Surface System:** Unified **Card-Only UI (Style 4)** using `<Card size="sm">` outer containers (`rounded-4xl bg-card shadow-md ring-1`), borderless tonal sub-tiles (`rounded-2xl bg-muted/50`), iOS-style grouped settings rows (`ProfileSettingsTab`), 24-hour ReUI `TimePicker` (`wellness-category-cards.tsx`, `push-reminders-card.tsx`), and shared `MetricHistoryCollapsible` (`@/components/ui/collapsible`) for Weight & Batch Body Measurements (`src/lib/body/metrics.ts`).
 
 ## 8. Offline Strategy & Push Reminders
 
