@@ -260,6 +260,7 @@
 		"sleepDescription": "Calculates overnight duration from sleep time to wake up time.",
 		"sleepTimeLabel": "Sleep time",
 		"wakeTimeLabel": "Wake up time",
+		"timePlaceholder": "Select time",
 		"sleepQualityLabel": "Sleep quality (1–5)",
 		"readinessTitle": "Readiness & Daily Notes",
 		"readinessDescription": "Optional daily recovery signals synced to training guidance.",
@@ -519,10 +520,13 @@
 			"ARM": "Arm"
 		},
 		"measurementInputLabel": "{label} (cm)",
-		"measurementSave": "Save measurement",
+		"measurementSave": "Save measurements",
 		"measurementSaving": "Saving…",
-		"measurementSaved": "Measurement saved!",
-		"measurementEmpty": "Not recorded"
+		"measurementSaved": "Measurements saved!",
+		"measurementEmpty": "Not recorded",
+		"measurementHistoryTitle": "Measurement history",
+		"deleteMeasurementAria": "Delete measurement entry",
+		"deleteMeasurementSuccess": "Measurement entry deleted."
 	},
 	"plan": {
 		"title": "Weekly Plan",
@@ -611,6 +615,7 @@
 		"swInactive": "Service worker is not active yet. Run the production build (pnpm start) or install the app as a PWA.",
 		"timeLabel": "Preferred reminder time",
 		"customTimeLabel": "Custom time",
+		"timePlaceholder": "Select time",
 		"enableButton": "Enable push reminders",
 		"enabling": "Enabling…",
 		"disableButton": "Disable",
