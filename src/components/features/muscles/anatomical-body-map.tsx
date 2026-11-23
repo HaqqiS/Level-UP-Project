@@ -18,7 +18,7 @@ export const MUSCLE_LEGEND_SWATCH_CLASS: Record<MuscleIntensity, string> = {
 	primary: "bg-primary dark:bg-[oklch(0.84_0.095_68)]",
 	secondary: "bg-primary/45 dark:bg-[oklch(0.58_0.075_64)]",
 	untargeted:
-		"border border-border/60 bg-secondary/85 dark:border-stone-600/70 dark:bg-[oklch(0.35_0.014_60)]",
+		"border border-border/70 bg-stone-200/90 dark:border-stone-600/70 dark:bg-[oklch(0.35_0.014_60)]",
 };
 
 function fillClassForIntensity(intensity: MuscleIntensity): string {
@@ -28,7 +28,7 @@ function fillClassForIntensity(intensity: MuscleIntensity): string {
 		case "secondary":
 			return "fill-primary/45 dark:fill-[oklch(0.58_0.075_64)]";
 		case "untargeted":
-			return "fill-secondary/85 dark:fill-[oklch(0.35_0.014_60)]";
+			return "fill-stone-200/90 dark:fill-[oklch(0.35_0.014_60)]";
 	}
 }
 

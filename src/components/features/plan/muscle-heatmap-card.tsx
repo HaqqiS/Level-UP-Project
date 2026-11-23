@@ -63,6 +63,8 @@ export function MuscleHeatmapCard({
 	const selectedDetail = selectedMuscle
 		? summary.detailsByMuscle[selectedMuscle]
 		: null;
+	const hasMusclePills =
+		summary.primaryMuscles.length > 0 || summary.secondaryMuscles.length > 0;
 
 	return (
 		<>
@@ -171,7 +173,7 @@ export function MuscleHeatmapCard({
 							}}
 						/>
 						<p className="text-center text-[0.68rem] text-muted-foreground">
-							{t("tapMuscleHint")}
+							{hasMusclePills ? t("tapMuscleHint") : t("tapMuscleHintEmpty")}
 						</p>
 					</div>
 
@@ -196,15 +198,14 @@ export function MuscleHeatmapCard({
 						</span>
 					</div>
 
-					{(summary.primaryMuscles.length > 0 ||
-						summary.secondaryMuscles.length > 0) && (
+					{hasMusclePills && (
 						<div className="flex flex-wrap justify-center gap-1.5">
 							{summary.primaryMuscles.map((muscle) => (
 								<Badge
 									key={`p-${muscle}`}
-									variant="primary-light"
-									size="xs"
-									className="cursor-pointer"
+									variant="default"
+									size="lg"
+									className="min-h-8 cursor-pointer px-2.5 text-xs"
 									render={
 										<button
 											type="button"
@@ -218,9 +219,9 @@ export function MuscleHeatmapCard({
 							{summary.secondaryMuscles.map((muscle) => (
 								<Badge
 									key={`s-${muscle}`}
-									variant="secondary"
-									size="xs"
-									className="cursor-pointer"
+									variant="primary-light"
+									size="lg"
+									className="min-h-8 cursor-pointer px-2.5 text-xs"
 									render={
 										<button
 											type="button"
