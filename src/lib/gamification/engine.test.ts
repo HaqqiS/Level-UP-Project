@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildDailyQuestTemplates,
+	buildWeeklyQuestTemplates,
 	computeSessionXp,
 	computeStreakBonusXp,
 	evaluateStreakHistory,
@@ -57,6 +58,9 @@ describe("evaluateStreakHistory", () => {
 		});
 		expect(withFreeze.currentStreak).toBe(1);
 		expect(withFreeze.freezesAvailable).toBe(0);
+		expect(withFreeze.freezeUsedThisWeek).toBe(true);
+		expect(withFreeze.lastFrozenDate).toBe("2026-11-18");
+		expect(withFreeze.frozenDates).toEqual(["2026-11-18"]);
 
 		// Also missed Fri (2026-11-20) -> no freeze left, streak resets by Sat (2026-11-21)
 		const resetAfterSecondMiss = evaluateStreakHistory({
@@ -67,6 +71,7 @@ describe("evaluateStreakHistory", () => {
 		});
 		expect(resetAfterSecondMiss.currentStreak).toBe(0);
 		expect(resetAfterSecondMiss.longestStreak).toBe(1);
+		expect(resetAfterSecondMiss.freezeUsedThisWeek).toBe(true);
 	});
 
 	it("refreshes freeze on a new ISO week", () => {
@@ -79,6 +84,8 @@ describe("evaluateStreakHistory", () => {
 		});
 		expect(nextWeek.currentStreak).toBe(2);
 		expect(nextWeek.freezesAvailable).toBe(1);
+		expect(nextWeek.freezeUsedThisWeek).toBe(false);
+		expect(nextWeek.lastFrozenDate).toBe("2026-11-18");
 	});
 });
 
@@ -102,5 +109,21 @@ describe("buildDailyQuestTemplates", () => {
 		expect(q1[1].xpReward).toBe(25);
 		expect(q1[2].xpReward).toBe(25);
 		expect(q1[1].key).not.toBe(q1[2].key);
+	});
+});
+
+describe("buildWeeklyQuestTemplates", () => {
+	it("creates 3 weekly quests with 200 XP reward each", () => {
+		const weekly = buildWeeklyQuestTemplates({
+			scheduledDaysCount: 4,
+			plannedWeeklySets: 36,
+		});
+		expect(weekly).toHaveLength(3);
+		expect(weekly.every((q) => q.type === "WEEKLY" && q.xpReward === 200)).toBe(
+			true,
+		);
+		expect(weekly[0]?.target).toBe(4);
+		expect(weekly[1]?.target).toBe(36);
+		expect(weekly[2]?.target).toBe(3);
 	});
 });

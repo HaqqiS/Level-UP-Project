@@ -6,6 +6,9 @@ export type GamificationSummary = {
 	currentStreak: number;
 	longestStreak: number;
 	freezesAvailable: number;
+	freezeWeekKey?: string | null;
+	freezeUsedThisWeek?: boolean;
+	lastFrozenDate?: string | null;
 	levelProgress: LevelProgress;
 };
 
@@ -18,4 +21,13 @@ export type QuestItemView = {
 	progress: number;
 	status: "PENDING" | "COMPLETED";
 	xpReward: number;
+};
+
+export type AchievementItemView = {
+	key: string;
+	title: string;
+	description: string;
+	category: "consistency" | "volume" | "skill" | "body";
+	xpReward: number;
+	unlockedAt: string | null;
 };

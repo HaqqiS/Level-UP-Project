@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { MOVEMENT_PATTERNS } from "@/lib/exercises/eligibility";
+import {
+	ExerciseMuscleEntrySchema,
+	MasteryBenchmarkSpecSchema,
+	MUSCLE_GROUPS,
+} from "@/lib/exercises/muscles";
 import { EQUIPMENT, INJURIES } from "@/lib/validation/onboarding";
 
 export const ExerciseCandidateSchema = z.object({
@@ -16,6 +21,14 @@ export const ExerciseCandidateSchema = z.object({
 	measure: z.enum(["REPS", "SECONDS"]),
 	cues: z.array(z.string().trim().min(4).max(160)).min(2).max(4),
 	contraindications: z.array(z.enum(INJURIES)).default([]),
+	primaryMuscles: z.array(z.enum(MUSCLE_GROUPS)).max(4).default([]),
+	secondaryMuscles: z.array(z.enum(MUSCLE_GROUPS)).max(4).default([]),
+	muscles: z.array(ExerciseMuscleEntrySchema).max(8).default([]),
+	masteryBenchmarks: z.array(MasteryBenchmarkSpecSchema).max(3).optional(),
+	suggestedPrerequisiteSlugs: z
+		.array(z.string().trim().min(2).max(80))
+		.max(3)
+		.default([]),
 	sourceUrl: z.url().optional(),
 });
 

@@ -1,4 +1,5 @@
 import type { MovementPattern } from "@/lib/exercises/eligibility";
+import type { SkillTreeBenchmarkInput } from "@/lib/gamification/skill-tree";
 
 export type ExerciseItem = {
 	id: string;
@@ -10,6 +11,19 @@ export type ExerciseItem = {
 	measure: "REPS" | "SECONDS";
 	cues: string[];
 	contraindications: string[];
+	primaryMuscles: string[];
+	secondaryMuscles: string[];
+	muscles?: {
+		muscleGroup: string;
+		role: "PRIMARY" | "SECONDARY" | "STABILIZER";
+		activationWeight: number;
+	}[];
+	masteryTargetSets: number;
+	masteryTargetReps: number | null;
+	masteryTargetSeconds: number | null;
+	branchKey?: string | null;
+	treeTier?: number;
+	masteryBenchmarks?: SkillTreeBenchmarkInput[];
 	progressionNextId: string | null;
 	status: "VERIFIED" | "UNVERIFIED";
 	source: "SEED" | "AI";

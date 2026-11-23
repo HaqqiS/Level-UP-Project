@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircle2, Circle, Loader2, Swords } from "lucide-react";
+import { CheckCircle2, Circle, Loader2, Swords, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
@@ -21,20 +21,29 @@ import {
 	ItemMedia,
 	ItemTitle,
 } from "@/components/ui/item";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { completeQuestAction } from "@/server/actions/workout";
 import type { QuestItemView } from "./types";
 
 function QuestRow({
 	quest,
 	isRestDay,
+	onOpenLogger,
 }: {
 	quest: QuestItemView;
 	isRestDay: boolean;
+	onOpenLogger?: () => void;
 }) {
 	const t = useTranslations();
 	const [pending, startTransition] = useTransition();
 	const isDone = quest.status === "COMPLETED";
-	const canOneTap = quest.type === "SIDE" || isRestDay;
+	const canOneTap =
+		quest.type === "SIDE" || (quest.type === "DAILY" && isRestDay);
+	const percent =
+		quest.target > 0
+			? Math.min(100, Math.round((quest.progress / quest.target) * 100))
+			: 0;
 
 	function handleComplete() {
 		startTransition(async () => {
@@ -52,6 +61,8 @@ function QuestRow({
 			<ItemMedia variant="icon">
 				{isDone ? (
 					<CheckCircle2 className="text-primary" />
+				) : quest.type === "WEEKLY" ? (
+					<Trophy />
 				) : quest.type === "DAILY" ? (
 					<Swords />
 				) : (
@@ -66,6 +77,7 @@ function QuestRow({
 						target: quest.target,
 					})}
 				</ItemDescription>
+				{quest.target > 1 && <Progress value={percent} />}
 			</ItemContent>
 			<ItemActions>
 				<Badge variant={isDone ? "success-light" : "secondary"} size="sm">
@@ -77,16 +89,22 @@ function QuestRow({
 						{t("quests.completeAction")}
 					</Button>
 				)}
-				{!isDone && !canOneTap && (
-					<Button
-						size="xs"
-						variant="outline"
-						nativeButton={false}
-						render={<Link href="/log" />}
-					>
-						{t("quests.logAction")}
-					</Button>
-				)}
+				{!isDone &&
+					!canOneTap &&
+					(onOpenLogger ? (
+						<Button size="xs" variant="outline" onClick={onOpenLogger}>
+							{t("quests.logAction")}
+						</Button>
+					) : (
+						<Button
+							size="xs"
+							variant="outline"
+							nativeButton={false}
+							render={<Link href="/today?tab=log" />}
+						>
+							{t("quests.logAction")}
+						</Button>
+					))}
 			</ItemActions>
 		</Item>
 	);
@@ -94,10 +112,14 @@ function QuestRow({
 
 export function DailyQuestsCard({
 	quests,
+	weeklyQuests,
 	isRestDay,
+	onOpenLogger,
 }: {
 	quests: QuestItemView[];
+	weeklyQuests: QuestItemView[];
 	isRestDay: boolean;
+	onOpenLogger?: () => void;
 }) {
 	const t = useTranslations("quests");
 
@@ -107,11 +129,42 @@ export function DailyQuestsCard({
 				<FrameTitle>{t("title")}</FrameTitle>
 			</FrameHeader>
 			<FramePanel>
-				<ItemGroup>
-					{quests.map((quest) => (
-						<QuestRow key={quest.id} quest={quest} isRestDay={isRestDay} />
-					))}
-				</ItemGroup>
+				<Tabs defaultValue="daily">
+					<TabsList>
+						<TabsTrigger value="daily">{t("dailyTab")}</TabsTrigger>
+						<TabsTrigger value="weekly">{t("weeklyTab")}</TabsTrigger>
+					</TabsList>
+					<TabsContent value="daily">
+						<ItemGroup>
+							{quests.map((quest) => (
+								<QuestRow
+									key={quest.id}
+									quest={quest}
+									isRestDay={isRestDay}
+									onOpenLogger={onOpenLogger}
+								/>
+							))}
+						</ItemGroup>
+					</TabsContent>
+					<TabsContent value="weekly">
+						{weeklyQuests.length === 0 ? (
+							<p className="text-sm text-muted-foreground">
+								{t("emptyWeekly")}
+							</p>
+						) : (
+							<ItemGroup>
+								{weeklyQuests.map((quest) => (
+									<QuestRow
+										key={quest.id}
+										quest={quest}
+										isRestDay={isRestDay}
+										onOpenLogger={onOpenLogger}
+									/>
+								))}
+							</ItemGroup>
+						)}
+					</TabsContent>
+				</Tabs>
 			</FramePanel>
 		</Frame>
 	);

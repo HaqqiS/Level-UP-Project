@@ -75,6 +75,9 @@ export type StreakEvaluation = {
 	longestStreak: number;
 	freezesAvailable: number;
 	freezeWeekKey: string;
+	freezeUsedThisWeek: boolean;
+	lastFrozenDate: string | null;
+	frozenDates: string[];
 	lastActiveDate: string | null;
 };
 
@@ -98,6 +101,9 @@ export function evaluateStreakHistory(params: {
 			longestStreak: 0,
 			freezesAvailable: 1,
 			freezeWeekKey: todayWeekKey,
+			freezeUsedThisWeek: false,
+			lastFrozenDate: null,
+			frozenDates: [],
 			lastActiveDate: null,
 		};
 	}
@@ -112,6 +118,8 @@ export function evaluateStreakHistory(params: {
 	let longestStreak = 0;
 	let freezesAvailable = 1;
 	let currentWeekKey = getIsoWeekKey(firstDate);
+	let lastFrozenDate: string | null = null;
+	const frozenDates: string[] = [];
 	let lastActiveDate: string | null = null;
 
 	for (
@@ -136,6 +144,8 @@ export function evaluateStreakHistory(params: {
 		if (isScheduledDay && cursor < params.todayDateKey && currentStreak > 0) {
 			if (freezesAvailable > 0) {
 				freezesAvailable -= 1;
+				lastFrozenDate = cursor;
+				frozenDates.push(cursor);
 			} else {
 				currentStreak = 0;
 			}
@@ -147,17 +157,52 @@ export function evaluateStreakHistory(params: {
 		longestStreak,
 		freezesAvailable,
 		freezeWeekKey: todayWeekKey,
+		freezeUsedThisWeek: freezesAvailable === 0,
+		lastFrozenDate,
+		frozenDates,
 		lastActiveDate,
 	};
 }
 
 export type QuestTemplate = {
-	type: "DAILY" | "SIDE";
+	type: "DAILY" | "SIDE" | "WEEKLY";
 	key: string;
 	title: string;
 	target: number;
 	xpReward: number;
 };
+
+export function buildWeeklyQuestTemplates(params: {
+	scheduledDaysCount: number;
+	plannedWeeklySets: number;
+}): QuestTemplate[] {
+	const safeDays = Math.max(1, params.scheduledDaysCount);
+	const safeSets = Math.max(10, params.plannedWeeklySets);
+
+	return [
+		{
+			type: "WEEKLY",
+			key: "weekly-sessions",
+			title: "Complete scheduled workouts this week",
+			target: safeDays,
+			xpReward: 200,
+		},
+		{
+			type: "WEEKLY",
+			key: "weekly-sets",
+			title: "Log target sets this week",
+			target: safeSets,
+			xpReward: 200,
+		},
+		{
+			type: "WEEKLY",
+			key: "weekly-checkin",
+			title: "Complete pre-workout check-ins this week",
+			target: Math.max(1, Math.min(3, safeDays)),
+			xpReward: 200,
+		},
+	];
+}
 
 const SIDE_QUEST_POOL: readonly { key: string; title: string }[] = [
 	{ key: "side-mobility", title: "2 min wrist & shoulder mobility" },

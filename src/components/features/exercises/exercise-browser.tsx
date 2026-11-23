@@ -1,7 +1,8 @@
 "use client";
-import { Search } from "lucide-react";
+import { GitBranch, List, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import type { BodyMapGender } from "@/components/features/muscles/body-map-paths";
 import { Frame } from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,9 +26,11 @@ import {
 	MOVEMENT_PATTERNS,
 	type MovementPattern,
 } from "@/lib/exercises/eligibility";
+import type { SkillTreeEvaluation } from "@/lib/gamification/skill-tree";
 import { DiscoverExercisesButton } from "./discover-exercises-button";
 import { ExerciseCard } from "./exercise-card";
 import { ExerciseDetailSheet } from "./exercise-detail-sheet";
+import { SkillTreeView } from "./skill-tree-view";
 import type { ExerciseItem } from "./types";
 
 type PatternTab = "ALL" | MovementPattern;
@@ -36,11 +39,16 @@ const PATTERN_TABS: readonly PatternTab[] = ["ALL", ...MOVEMENT_PATTERNS];
 export function ExerciseBrowser({
 	exercises,
 	profile,
+	skillTree,
+	bodyMapGender = "male",
 }: {
 	exercises: ExerciseItem[];
 	profile: EligibilityProfile;
+	skillTree: SkillTreeEvaluation<ExerciseItem>;
+	bodyMapGender?: BodyMapGender;
 }) {
 	const t = useTranslations("exercises");
+	const [viewMode, setViewMode] = useState<"list" | "tree">("list");
 	const [tab, setTab] = useState<PatternTab>("ALL");
 	const [scope, setScope] = useState<"eligible" | "all">("eligible");
 	const [query, setQuery] = useState("");
@@ -61,85 +69,126 @@ export function ExerciseBrowser({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex items-center gap-2">
-				<InputGroup className="flex-1">
-					<InputGroupAddon>
-						<Search />
-					</InputGroupAddon>
-					<InputGroupInput
-						value={query}
-						onChange={(e) => setQuery(e.target.value)}
-						placeholder={t("searchPlaceholder")}
-					/>
-				</InputGroup>
+			<ToggleGroup
+				variant="outline"
+				className="w-full"
+				value={[viewMode]}
+				onValueChange={(values) => {
+					const next = values[0];
+					if (next === "list" || next === "tree") setViewMode(next);
+				}}
+			>
+				<ToggleGroupItem value="list" className="flex-1">
+					<List />
+					{t("listViewTab")}
+				</ToggleGroupItem>
+				<ToggleGroupItem value="tree" className="flex-1">
+					<GitBranch />
+					{t("skillTreeTab")}
+				</ToggleGroupItem>
+			</ToggleGroup>
 
-				<ToggleGroup
-					variant="outline"
-					size="sm"
-					value={[scope]}
-					onValueChange={(values) => {
-						const next = values[0];
-						if (next === "eligible" || next === "all") setScope(next);
-					}}
-				>
-					<ToggleGroupItem value="eligible">
-						{t("filterEligible")}
-					</ToggleGroupItem>
-					<ToggleGroupItem value="all">{t("filterAll")}</ToggleGroupItem>
-				</ToggleGroup>
-			</div>
+			{viewMode === "tree" ? (
+				<SkillTreeView
+					exercises={exercises}
+					skillTree={skillTree}
+					userEquipment={profile.equipment}
+					onSelectExercise={setSelected}
+				/>
+			) : (
+				<>
+					<div className="flex items-center gap-2">
+						<InputGroup className="flex-1">
+							<InputGroupAddon>
+								<Search />
+							</InputGroupAddon>
+							<InputGroupInput
+								value={query}
+								onChange={(e) => setQuery(e.target.value)}
+								placeholder={t("searchPlaceholder")}
+							/>
+						</InputGroup>
 
-			<Tabs value={tab} onValueChange={(value) => setTab(value as PatternTab)}>
-				<TabsList className="w-full justify-start overflow-x-auto">
-					{PATTERN_TABS.map((p) => (
-						<TabsTrigger key={p} value={p}>
-							{t(`patterns.${p}`)}
-						</TabsTrigger>
-					))}
-				</TabsList>
+						<ToggleGroup
+							variant="outline"
+							size="sm"
+							value={[scope]}
+							onValueChange={(values) => {
+								const next = values[0];
+								if (next === "eligible" || next === "all") setScope(next);
+							}}
+						>
+							<ToggleGroupItem value="eligible">
+								{t("filterEligible")}
+							</ToggleGroupItem>
+							<ToggleGroupItem value="all">{t("filterAll")}</ToggleGroupItem>
+						</ToggleGroup>
+					</div>
 
-				<TabsContent value={tab} className="mt-3 space-y-4">
-					{filtered.length > 0 ? (
-						<Frame spacing="sm">
-							{filtered.map((exercise) => (
-								<ExerciseCard
-									key={exercise.id}
-									exercise={exercise}
-									onSelect={setSelected}
-								/>
+					<Tabs
+						value={tab}
+						onValueChange={(value) => setTab(value as PatternTab)}
+					>
+						<TabsList className="w-full justify-start overflow-x-auto">
+							{PATTERN_TABS.map((p) => (
+								<TabsTrigger key={p} value={p}>
+									{t(`patterns.${p}`)}
+								</TabsTrigger>
 							))}
-						</Frame>
-					) : (
-						<Frame>
-							<Empty>
-								<EmptyHeader>
-									<EmptyMedia variant="icon">
-										<Search />
-									</EmptyMedia>
-									<EmptyTitle>{t("emptyTitle")}</EmptyTitle>
-									<EmptyDescription>{t("emptyDescription")}</EmptyDescription>
-								</EmptyHeader>
-								{scope === "eligible" && (
-									<EmptyContent>
-										<Button variant="outline" onClick={() => setScope("all")}>
-											{t("filterAll")}
-										</Button>
-									</EmptyContent>
-								)}
-							</Empty>
-						</Frame>
-					)}
+						</TabsList>
 
-					<DiscoverExercisesButton
-						pattern={activePattern}
-						experienceLevel={profile.experienceLevel}
-					/>
-				</TabsContent>
-			</Tabs>
+						<TabsContent value={tab} className="mt-3 space-y-4">
+							{filtered.length > 0 ? (
+								<Frame spacing="sm">
+									{filtered.map((exercise) => (
+										<ExerciseCard
+											key={exercise.id}
+											exercise={exercise}
+											onSelect={setSelected}
+										/>
+									))}
+								</Frame>
+							) : (
+								<Frame>
+									<Empty>
+										<EmptyHeader>
+											<EmptyMedia variant="icon">
+												<Search />
+											</EmptyMedia>
+											<EmptyTitle>{t("emptyTitle")}</EmptyTitle>
+											<EmptyDescription>
+												{t("emptyDescription")}
+											</EmptyDescription>
+										</EmptyHeader>
+										{scope === "eligible" && (
+											<EmptyContent>
+												<Button
+													variant="outline"
+													onClick={() => setScope("all")}
+												>
+													{t("filterAll")}
+												</Button>
+											</EmptyContent>
+										)}
+									</Empty>
+								</Frame>
+							)}
+
+							<DiscoverExercisesButton
+								pattern={activePattern}
+								experienceLevel={profile.experienceLevel}
+							/>
+						</TabsContent>
+					</Tabs>
+				</>
+			)}
 
 			<ExerciseDetailSheet
 				exercise={selected}
 				allExercises={exercises}
+				masteryByExerciseId={skillTree.masteryByExerciseId}
+				edges={skillTree.edges}
+				bodyMapGender={bodyMapGender}
 				onOpenChange={(open) => {
 					if (!open) setSelected(null);
 				}}
