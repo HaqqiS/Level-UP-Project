@@ -1,16 +1,28 @@
 import "server-only";
 import { db } from "@/lib/db";
+import type { ExperienceLevel } from "@/lib/exercises/eligibility";
 import {
 	ACHIEVEMENT_CATALOG,
 	evaluateUnlockedAchievements,
+	getAchievementByKey,
+	getTitleForAchievementKey,
 } from "@/lib/gamification/achievements";
 import {
 	buildDailyQuestTemplates,
 	buildWeeklyQuestTemplates,
+	computeMasteryXp,
+	EMPTY_DIRECT_MASTERY_SNAPSHOT,
+	evaluateRankProgress,
 	evaluateStreakHistory,
 	getIsoWeekKey,
-	getLevelProgress,
+	RANK_TIER_INDEX,
+	type RankTier,
+	resolveEffectiveExperienceLevel,
 } from "@/lib/gamification/engine";
+import {
+	type DirectMasterySnapshot,
+	evaluateDirectExerciseMastery,
+} from "@/lib/gamification/skill-tree";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 import {
 	getCurrentWeeklyPlan,
@@ -23,11 +35,150 @@ function addDaysKey(dateKey: string, days: number): string {
 	return d.toISOString().slice(0, 10);
 }
 
-export async function recalculateAndSaveUserStats(userId: string) {
-	const [profile, xpSum, completedLogs] = await Promise.all([
+export async function syncDirectMasteryXpForUser(
+	userId: string,
+): Promise<DirectMasterySnapshot> {
+	const rawSetLogs = await db.setLog.findMany({
+		where: { workoutLog: { userId } },
+		orderBy: [
+			{ workoutLog: { date: "asc" } },
+			{ completedAt: "asc" },
+			{ setNumber: "asc" },
+		],
+		select: {
+			workoutLogId: true,
+			exerciseId: true,
+			reps: true,
+			seconds: true,
+			rpe: true,
+			workoutLog: { select: { date: true } },
+		},
+	});
+
+	if (rawSetLogs.length === 0) {
+		return EMPTY_DIRECT_MASTERY_SNAPSHOT;
+	}
+
+	const exerciseIds = [...new Set(rawSetLogs.map((s) => s.exerciseId))];
+	const exercises = await db.exercise.findMany({
+		where: { id: { in: exerciseIds } },
+		select: {
+			id: true,
+			slug: true,
+			name: true,
+			pattern: true,
+			difficulty: true,
+			measure: true,
+			progressionNextId: true,
+			masteryTargetSets: true,
+			masteryTargetReps: true,
+			masteryTargetSeconds: true,
+			masteryBenchmarks: {
+				select: {
+					tier: true,
+					targetSets: true,
+					targetReps: true,
+					targetSeconds: true,
+					minConsecutiveSessions: true,
+					maxRpe: true,
+					tempo: true,
+					formStandard: true,
+					unlocksNext: true,
+				},
+			},
+		},
+	});
+
+	const setLogs = rawSetLogs.map((s) => ({
+		workoutLogId: s.workoutLogId,
+		exerciseId: s.exerciseId,
+		reps: s.reps,
+		seconds: s.seconds,
+		rpe: s.rpe,
+		date: s.workoutLog.date,
+	}));
+
+	const evaluation = evaluateDirectExerciseMastery({ exercises, setLogs });
+	if (evaluation.awards.length > 0) {
+		await db.xpEvent.createMany({
+			data: evaluation.awards.map((a) => ({
+				userId,
+				source: "MASTERY",
+				refId: `mastery:${a.exerciseId}:${a.tier}`,
+				amount: computeMasteryXp(a.difficulty, a.tier),
+			})),
+			skipDuplicates: true,
+		});
+	}
+
+	return evaluation.snapshot;
+}
+
+export async function syncHydrationQuestForDate(
+	userId: string,
+	dateKey: string,
+): Promise<boolean> {
+	const log = await db.dailyWellnessLog.findUnique({
+		where: { userId_date: { userId, date: dateKey } },
+		select: { hydrationMl: true },
+	});
+	if ((log?.hydrationMl ?? 0) < 2000) {
+		return false;
+	}
+
+	const quest = await db.quest.findUnique({
+		where: { userId_key_date: { userId, key: "side-hydrate", date: dateKey } },
+	});
+	if (!quest || quest.status === "COMPLETED") {
+		return false;
+	}
+
+	await db.$transaction([
+		db.quest.update({
+			where: { id: quest.id },
+			data: { status: "COMPLETED", progress: quest.target },
+		}),
+		db.xpEvent.upsert({
+			where: {
+				userId_source_refId: {
+					userId,
+					source: "QUEST",
+					refId: quest.id,
+				},
+			},
+			create: {
+				userId,
+				source: "QUEST",
+				refId: quest.id,
+				amount: quest.xpReward,
+			},
+			update: {},
+		}),
+	]);
+
+	return true;
+}
+
+export async function recalculateAndSaveUserStats(
+	userId: string,
+	precomputedMastery?: DirectMasterySnapshot,
+) {
+	const masterySnapshot =
+		precomputedMastery ?? (await syncDirectMasteryXpForUser(userId));
+
+	const [profile, existingStats, xpSum, completedLogs] = await Promise.all([
 		db.profile.findUnique({
 			where: { userId },
-			select: { trainingDays: true, timezone: true, createdAt: true },
+			select: {
+				trainingDays: true,
+				timezone: true,
+				createdAt: true,
+				experienceLevel: true,
+			},
+		}),
+		db.userStats.findUnique({
+			where: { userId },
+			select: { rankTier: true, equippedTitleKey: true },
 		}),
 		db.xpEvent.aggregate({
 			where: { userId },
@@ -47,7 +198,7 @@ export async function recalculateAndSaveUserStats(userId: string) {
 		: todayKey;
 
 	const totalXp = xpSum._sum.amount ?? 0;
-	const levelProgress = getLevelProgress(totalXp);
+	const levelProgress = evaluateRankProgress(totalXp, masterySnapshot);
 	const streak = evaluateStreakHistory({
 		scheduledDays: profile?.trainingDays ?? [],
 		completedDates: completedLogs.map((l) => l.date),
@@ -55,12 +206,19 @@ export async function recalculateAndSaveUserStats(userId: string) {
 		todayDateKey: todayKey,
 	});
 
+	const hasInvalidTitleKey = Boolean(
+		existingStats?.equippedTitleKey &&
+			!getTitleForAchievementKey(existingStats.equippedTitleKey),
+	);
+
 	const stats = await db.userStats.upsert({
 		where: { userId },
 		create: {
 			userId,
 			totalXp,
 			level: levelProgress.level,
+			rankTier: levelProgress.rankTier,
+			tierLevel: levelProgress.tierLevel,
 			currentStreak: streak.currentStreak,
 			longestStreak: streak.longestStreak,
 			freezesAvailable: streak.freezesAvailable,
@@ -70,6 +228,9 @@ export async function recalculateAndSaveUserStats(userId: string) {
 		update: {
 			totalXp,
 			level: levelProgress.level,
+			rankTier: levelProgress.rankTier,
+			tierLevel: levelProgress.tierLevel,
+			...(hasInvalidTitleKey ? { equippedTitleKey: null } : {}),
 			currentStreak: streak.currentStreak,
 			longestStreak: streak.longestStreak,
 			freezesAvailable: streak.freezesAvailable,
@@ -78,11 +239,36 @@ export async function recalculateAndSaveUserStats(userId: string) {
 		},
 	});
 
+	let effectiveExperienceLevel = (profile?.experienceLevel ??
+		"NONE") as ExperienceLevel;
+	if (
+		profile &&
+		(!existingStats ||
+			RANK_TIER_INDEX[levelProgress.rankTier] >
+				RANK_TIER_INDEX[existingStats.rankTier as RankTier])
+	) {
+		const upgraded = resolveEffectiveExperienceLevel(
+			effectiveExperienceLevel,
+			levelProgress.rankTier,
+		);
+		if (upgraded !== effectiveExperienceLevel) {
+			await db.profile.update({
+				where: { userId },
+				data: { experienceLevel: upgraded },
+			});
+			effectiveExperienceLevel = upgraded;
+		}
+	}
+
 	return {
 		...stats,
+		rankTier: levelProgress.rankTier,
+		equippedTitle: getTitleForAchievementKey(stats.equippedTitleKey),
 		levelProgress,
 		freezeUsedThisWeek: streak.freezeUsedThisWeek,
 		lastFrozenDate: streak.lastFrozenDate,
+		masterySnapshot,
+		effectiveExperienceLevel,
 	};
 }
 
@@ -100,6 +286,7 @@ async function syncWeeklyQuestsForUser(params: {
 		scheduledDaysCount,
 		plannedWeeklySets,
 	});
+	const templateByKey = new Map(templates.map((t) => [t.key, t]));
 
 	await db.quest.createMany({
 		data: templates.map((q) => ({
@@ -154,13 +341,23 @@ async function syncWeeklyQuestsForUser(params: {
 	for (const quest of existingWeekly) {
 		const rawProgress = progressByKey[quest.key] ?? quest.progress;
 		const capped = Math.min(quest.target, rawProgress);
+		const template = templateByKey.get(quest.key);
+		const targetXpReward =
+			quest.status === "PENDING" && template
+				? template.xpReward
+				: quest.xpReward;
+		const xpRewardChanged = targetXpReward !== quest.xpReward;
 		const newlyCompleted = quest.status === "PENDING" && capped >= quest.target;
 
 		if (newlyCompleted) {
 			await db.$transaction([
 				db.quest.update({
 					where: { id: quest.id },
-					data: { progress: quest.target, status: "COMPLETED" },
+					data: {
+						progress: quest.target,
+						status: "COMPLETED",
+						...(xpRewardChanged ? { xpReward: targetXpReward } : {}),
+					},
 				}),
 				db.xpEvent.upsert({
 					where: {
@@ -174,15 +371,21 @@ async function syncWeeklyQuestsForUser(params: {
 						userId,
 						source: "QUEST",
 						refId: quest.id,
-						amount: quest.xpReward,
+						amount: targetXpReward,
 					},
 					update: {},
 				}),
 			]);
-		} else if (quest.status === "PENDING" && capped !== quest.progress) {
+		} else if (
+			quest.status === "PENDING" &&
+			(capped !== quest.progress || xpRewardChanged)
+		) {
 			await db.quest.update({
 				where: { id: quest.id },
-				data: { progress: capped },
+				data: {
+					progress: capped,
+					...(xpRewardChanged ? { xpReward: targetXpReward } : {}),
+				},
 			});
 		}
 	}
@@ -195,18 +398,59 @@ async function syncWeeklyQuestsForUser(params: {
 
 export async function syncAchievementsForUser(
 	userId: string,
-	stats: { level: number; longestStreak: number },
+	stats: { level: number; rankTier: RankTier; longestStreak: number },
+	masterySnapshot?: DirectMasterySnapshot,
 ) {
-	await db.achievement.createMany({
-		data: ACHIEVEMENT_CATALOG.map((a) => ({
-			key: a.key,
-			title: a.title,
-			description: a.description,
-			category: a.category,
-			xpReward: a.xpReward,
-		})),
-		skipDuplicates: true,
+	const mastery = masterySnapshot ?? (await syncDirectMasteryXpForUser(userId));
+
+	const existingCatalog = await db.achievement.findMany();
+	const existingByKey = new Map(existingCatalog.map((row) => [row.key, row]));
+
+	const missingDefs = ACHIEVEMENT_CATALOG.filter(
+		(a) => !existingByKey.has(a.key),
+	);
+	if (missingDefs.length > 0) {
+		await db.achievement.createMany({
+			data: missingDefs.map((a) => ({
+				key: a.key,
+				title: a.title,
+				description: a.description,
+				category: a.category,
+				xpReward: a.xpReward,
+				titleReward: a.titleReward,
+			})),
+			skipDuplicates: true,
+		});
+	}
+
+	const staleUpdates = ACHIEVEMENT_CATALOG.flatMap((a) => {
+		const row = existingByKey.get(a.key);
+		if (!row) return [];
+		if (
+			row.title === a.title &&
+			row.description === a.description &&
+			row.category === a.category &&
+			row.xpReward === a.xpReward &&
+			row.titleReward === a.titleReward
+		) {
+			return [];
+		}
+		return [
+			db.achievement.update({
+				where: { key: a.key },
+				data: {
+					title: a.title,
+					description: a.description,
+					category: a.category,
+					xpReward: a.xpReward,
+					titleReward: a.titleReward,
+				},
+			}),
+		];
 	});
+	if (staleUpdates.length > 0) {
+		await db.$transaction(staleUpdates);
+	}
 
 	const [
 		completedSessionsCount,
@@ -228,7 +472,9 @@ export async function syncAchievementsForUser(
 			where: { workoutLog: { userId }, exercise: { pattern: "SKILL" } },
 		}),
 		db.bodyMetric.count({ where: { userId } }),
-		db.achievement.findMany(),
+		missingDefs.length > 0
+			? db.achievement.findMany()
+			: Promise.resolve(existingCatalog),
 		db.userAchievement.findMany({
 			where: { userId },
 			include: { achievement: { select: { key: true } } },
@@ -248,6 +494,10 @@ export async function syncAchievementsForUser(
 			skillSetsLogged,
 			level: stats.level,
 			bodyMetricsCount,
+			rankTier: stats.rankTier,
+			directBronzeCount: mastery.bronzeCount,
+			directSilverCount: mastery.silverCount,
+			directGoldCount: mastery.goldCount,
 		},
 		unlockedSet,
 	);
@@ -283,10 +533,13 @@ export async function syncAchievementsForUser(
 		]);
 	}
 
-	const finalUnlocked = await db.userAchievement.findMany({
-		where: { userId },
-		include: { achievement: { select: { key: true } } },
-	});
+	const finalUnlocked =
+		newlyUnlocked.length > 0
+			? await db.userAchievement.findMany({
+					where: { userId },
+					include: { achievement: { select: { key: true } } },
+				})
+			: userAchievements;
 	const unlockedAtByKey = new Map(
 		finalUnlocked.map((u) => [u.achievement.key, u.unlockedAt.toISOString()]),
 	);
@@ -299,12 +552,51 @@ export async function syncAchievementsForUser(
 			description: def.description,
 			category: def.category,
 			xpReward: def.xpReward,
+			titleReward: def.titleReward,
 			unlockedAt: unlockedAtByKey.get(def.key) ?? null,
 		})),
 	};
 }
 
-export async function ensureTodayQuestsAndStats(userId: string) {
+/**
+ * Bounded 2-pass convergence so badge XP unlocked on pass 1 (e.g. mastery or rank badges)
+ * updates stats/level/rank and cascades at most one additional pass without unbounded loops.
+ */
+async function syncStatsAndAchievementsConverged(
+	userId: string,
+	precomputedMastery?: DirectMasterySnapshot,
+) {
+	const masterySnapshot =
+		precomputedMastery ?? (await syncDirectMasteryXpForUser(userId));
+	const stats1 = await recalculateAndSaveUserStats(userId, masterySnapshot);
+	const sync1 = await syncAchievementsForUser(userId, stats1, masterySnapshot);
+
+	if (sync1.newlyUnlockedCount === 0) {
+		return {
+			stats: stats1,
+			achievements: sync1.achievements,
+			masterySnapshot,
+		};
+	}
+
+	const stats2 = await recalculateAndSaveUserStats(userId, masterySnapshot);
+	const sync2 = await syncAchievementsForUser(userId, stats2, masterySnapshot);
+	const finalStats =
+		sync2.newlyUnlockedCount > 0
+			? await recalculateAndSaveUserStats(userId, masterySnapshot)
+			: stats2;
+
+	return {
+		stats: finalStats,
+		achievements: sync2.achievements,
+		masterySnapshot,
+	};
+}
+
+export async function ensureTodayQuestsAndStats(
+	userId: string,
+	precomputedMastery?: DirectMasterySnapshot,
+) {
 	const profile = await db.profile.findUnique({ where: { userId } });
 	assertCanGeneratePlan(profile);
 	if (!profile) throw new Error("Profile missing");
@@ -338,6 +630,7 @@ export async function ensureTodayQuestsAndStats(userId: string) {
 		sessionFocus: todaySession?.focus ?? null,
 		plannedSetsCount,
 	});
+	const templateByKey = new Map(templates.map((t) => [t.key, t]));
 
 	await db.quest.createMany({
 		data: templates.map((q) => ({
@@ -355,29 +648,43 @@ export async function ensureTodayQuestsAndStats(userId: string) {
 	});
 
 	const mainTemplate = templates[0];
-	const existingMain = await db.quest.findUnique({
-		where: {
-			userId_key_date: { userId, key: mainTemplate.key, date: todayKey },
-		},
+	const existingDailySide = await db.quest.findMany({
+		where: { userId, date: todayKey, type: { in: ["DAILY", "SIDE"] } },
 	});
-	if (existingMain && existingMain.status === "PENDING") {
-		const setsDone = todayLog?.sets.length ?? 0;
-		const nextProgress = Math.min(mainTemplate.target, setsDone);
-		if (
-			existingMain.target !== mainTemplate.target ||
-			existingMain.title !== mainTemplate.title ||
-			existingMain.progress !== nextProgress
-		) {
+
+	for (const quest of existingDailySide) {
+		if (quest.status !== "PENDING") continue;
+		const tpl = templateByKey.get(quest.key);
+		if (!tpl) continue;
+
+		if (quest.key === mainTemplate.key) {
+			const setsDone = todayLog?.sets.length ?? 0;
+			const nextProgress = Math.min(mainTemplate.target, setsDone);
+			if (
+				quest.target !== mainTemplate.target ||
+				quest.title !== mainTemplate.title ||
+				quest.progress !== nextProgress ||
+				quest.xpReward !== mainTemplate.xpReward
+			) {
+				await db.quest.update({
+					where: { id: quest.id },
+					data: {
+						title: mainTemplate.title,
+						target: mainTemplate.target,
+						progress: nextProgress,
+						xpReward: mainTemplate.xpReward,
+					},
+				});
+			}
+		} else if (quest.xpReward !== tpl.xpReward) {
 			await db.quest.update({
-				where: { id: existingMain.id },
-				data: {
-					title: mainTemplate.title,
-					target: mainTemplate.target,
-					progress: nextProgress,
-				},
+				where: { id: quest.id },
+				data: { xpReward: tpl.xpReward },
 			});
 		}
 	}
+
+	await syncHydrationQuestForDate(userId, todayKey);
 
 	const plannedWeeklySets = plan
 		? plan.sessions.reduce(
@@ -386,7 +693,7 @@ export async function ensureTodayQuestsAndStats(userId: string) {
 			)
 		: profile.trainingDays.length * 9;
 
-	const [quests, weeklyQuests, initialStats] = await Promise.all([
+	const [quests, weeklyQuests] = await Promise.all([
 		db.quest.findMany({
 			where: { userId, date: todayKey, type: { in: ["DAILY", "SIDE"] } },
 			orderBy: [{ type: "asc" }, { createdAt: "asc" }],
@@ -397,17 +704,12 @@ export async function ensureTodayQuestsAndStats(userId: string) {
 			scheduledDaysCount: profile.trainingDays.length,
 			plannedWeeklySets,
 		}),
-		recalculateAndSaveUserStats(userId),
 	]);
 
-	const { achievements, newlyUnlockedCount } = await syncAchievementsForUser(
+	const { stats, achievements } = await syncStatsAndAchievementsConverged(
 		userId,
-		initialStats,
+		precomputedMastery,
 	);
-	const stats =
-		newlyUnlockedCount > 0
-			? await recalculateAndSaveUserStats(userId)
-			: initialStats;
 
 	return {
 		todayKey,
@@ -423,9 +725,13 @@ export async function ensureTodayQuestsAndStats(userId: string) {
 }
 
 export async function getAchievementsForUser(userId: string) {
-	const stats = await recalculateAndSaveUserStats(userId);
-	const { achievements } = await syncAchievementsForUser(userId, stats);
-	return { stats, achievements };
+	const { stats, achievements } =
+		await syncStatsAndAchievementsConverged(userId);
+	return {
+		stats,
+		achievements,
+		experienceLevel: stats.effectiveExperienceLevel,
+	};
 }
 
 export type CompleteQuestResult =
@@ -469,8 +775,64 @@ export async function completeSideQuest(params: {
 		}),
 	]);
 
-	const updatedStats = await recalculateAndSaveUserStats(params.userId);
-	await syncAchievementsForUser(params.userId, updatedStats);
-	await recalculateAndSaveUserStats(params.userId);
+	await syncStatsAndAchievementsConverged(params.userId);
 	return { ok: true, xpAwarded: quest.xpReward };
+}
+
+export type EquipTitleResult =
+	| { ok: true; equippedTitleKey: string | null; equippedTitle: string | null }
+	| { ok: false; reason: "invalid" | "not_unlocked" };
+
+async function ensureUserStatsRowExists(userId: string): Promise<void> {
+	const existing = await db.userStats.findUnique({
+		where: { userId },
+		select: { id: true },
+	});
+	if (!existing) {
+		await recalculateAndSaveUserStats(userId);
+	}
+}
+
+export async function equipTitleForUser(params: {
+	userId: string;
+	achievementKey: string | null;
+}): Promise<EquipTitleResult> {
+	const { userId, achievementKey } = params;
+
+	if (achievementKey === null) {
+		await ensureUserStatsRowExists(userId);
+		await db.userStats.update({
+			where: { userId },
+			data: { equippedTitleKey: null },
+		});
+		return { ok: true, equippedTitleKey: null, equippedTitle: null };
+	}
+
+	const def = getAchievementByKey(achievementKey);
+	if (!def) {
+		return { ok: false, reason: "invalid" };
+	}
+
+	const unlocked = await db.userAchievement.findFirst({
+		where: {
+			userId,
+			achievement: { key: achievementKey },
+		},
+		select: { id: true },
+	});
+	if (!unlocked) {
+		return { ok: false, reason: "not_unlocked" };
+	}
+
+	await ensureUserStatsRowExists(userId);
+	await db.userStats.update({
+		where: { userId },
+		data: { equippedTitleKey: achievementKey },
+	});
+
+	return {
+		ok: true,
+		equippedTitleKey: achievementKey,
+		equippedTitle: def.titleReward,
+	};
 }

@@ -12,7 +12,7 @@ import {
 import {
 	ensureTodayQuestsAndStats,
 	recalculateAndSaveUserStats,
-	syncAchievementsForUser,
+	syncDirectMasteryXpForUser,
 } from "@/server/services/gamification-service";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 import { getLocalDateKey } from "@/server/services/weekly-plan-service";
@@ -60,6 +60,12 @@ export async function finalizeWorkoutSession(
 	if (log.sets.length === 0) {
 		return { ok: false, reason: "no_sets" };
 	}
+
+	const xpBeforeAgg = await db.xpEvent.aggregate({
+		where: { userId },
+		_sum: { amount: true },
+	});
+	const xpBefore = xpBeforeAgg._sum.amount ?? 0;
 
 	const plannedSetsCount =
 		log.plannedSession?.exercises.reduce((sum, ex) => sum + ex.sets, 0) ??
@@ -109,7 +115,11 @@ export async function finalizeWorkoutSession(
 		});
 	});
 
-	const updatedStats = await recalculateAndSaveUserStats(userId);
+	const masterySnapshot = await syncDirectMasteryXpForUser(userId);
+	const updatedStats = await recalculateAndSaveUserStats(
+		userId,
+		masterySnapshot,
+	);
 	const streakBonus = computeStreakBonusXp(updatedStats.currentStreak);
 
 	if (streakBonus > 0) {
@@ -131,11 +141,10 @@ export async function finalizeWorkoutSession(
 		});
 	}
 
-	const refreshedStats = await recalculateAndSaveUserStats(userId);
-	await syncAchievementsForUser(userId, refreshedStats);
-	await ensureTodayQuestsAndStats(userId);
+	const ensured = await ensureTodayQuestsAndStats(userId, masterySnapshot);
+	const xpEarned = Math.max(0, ensured.stats.totalXp - xpBefore);
 
-	return { ok: true, xpEarned: sessionXp + streakBonus };
+	return { ok: true, xpEarned };
 }
 
 export async function logExerciseSet(params: {
@@ -258,6 +267,12 @@ export async function syncOfflineWorkoutBatch(params: {
 	const profile = await db.profile.findUnique({ where: { userId } });
 	assertCanGeneratePlan(profile);
 
+	const xpBeforeAgg = await db.xpEvent.aggregate({
+		where: { userId },
+		_sum: { amount: true },
+	});
+	const xpBefore = xpBeforeAgg._sum.amount ?? 0;
+
 	const syncedClientIds: string[] = [];
 	const touchedWorkoutLogIds = new Map<string, string>(); // dateKey -> workoutLogId
 
@@ -326,6 +341,7 @@ export async function syncOfflineWorkoutBatch(params: {
 		touchedWorkoutLogIds.set(set.dateKey, workoutLog.id);
 	}
 
+	let finalizedAny = false;
 	let totalXpEarned = 0;
 	const syncedFinishedDateKeys: string[] = [];
 
@@ -361,6 +377,7 @@ export async function syncOfflineWorkoutBatch(params: {
 		) {
 			const finalized = await finalizeWorkoutSession(userId, log.id);
 			if (finalized.ok) {
+				finalizedAny = true;
 				totalXpEarned += finalized.xpEarned;
 			}
 		}
@@ -370,7 +387,10 @@ export async function syncOfflineWorkoutBatch(params: {
 		}
 	}
 
-	await ensureTodayQuestsAndStats(userId);
+	if (!finalizedAny) {
+		const ensured = await ensureTodayQuestsAndStats(userId);
+		totalXpEarned = Math.max(0, ensured.stats.totalXp - xpBefore);
+	}
 
 	return {
 		ok: true,

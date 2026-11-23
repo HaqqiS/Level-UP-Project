@@ -22,6 +22,7 @@ export async function saveDailyWellnessLogAction(input: DailyWellnessLogInput) {
 	if (result.ok) {
 		revalidatePath("/calendar");
 		revalidatePath("/today");
+		revalidatePath("/profile");
 	}
 	return result;
 }

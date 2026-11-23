@@ -23,6 +23,10 @@ import {
 	slugifyWellnessItemName,
 } from "@/lib/wellness/cycle-and-wellness";
 import { diffDaysUtc } from "@/lib/wellness/cycle-engine";
+import {
+	ensureTodayQuestsAndStats,
+	syncHydrationQuestForDate,
+} from "@/server/services/gamification-service";
 import { getLocalDateKey } from "@/server/services/weekly-plan-service";
 
 export type CalendarDayLogView = {
@@ -724,6 +728,16 @@ export async function saveDailyWellnessLogForUser(
 
 		return row;
 	});
+
+	if (
+		d.date === getLocalDateKey(profile.timezone) &&
+		(hydrationMl ?? 0) >= 2000
+	) {
+		const hydrationCompleted = await syncHydrationQuestForDate(userId, d.date);
+		if (hydrationCompleted) {
+			await ensureTodayQuestsAndStats(userId);
+		}
+	}
 
 	return {
 		ok: true as const,
