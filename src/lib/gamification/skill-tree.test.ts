@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	evaluateDirectExerciseMastery,
 	evaluateSkillTree,
 	type SkillTreeBenchmarkInput,
 	type SkillTreeEdgeInput,
@@ -772,5 +773,372 @@ describe("evaluateSkillTree", () => {
 		});
 		expect(loggedLocked.masteryByExerciseId.child?.status).toBe("ongoing");
 		expect(loggedLocked.masteryByExerciseId.child?.totalSetsLogged).toBe(1);
+	});
+});
+
+describe("evaluateDirectExerciseMastery", () => {
+	it("returns empty awards and zero snapshot when no logs exist", () => {
+		const res = evaluateDirectExerciseMastery({
+			exercises: CHAIN,
+			setLogs: [],
+		});
+
+		expect(res.awards).toEqual([]);
+		expect(res.snapshot).toEqual({
+			bronzeCount: 0,
+			silverCount: 0,
+			goldCount: 0,
+			maxDifficultyMastered: 0,
+			masteredPatternsCount: 0,
+		});
+	});
+
+	it("does not award implied Bronze on prerequisite parents", () => {
+		const tree = evaluateSkillTree({
+			exercises: CHAIN,
+			setLogs: [
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-incline",
+					reps: 10,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-incline",
+					reps: 10,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-incline",
+					reps: 10,
+					seconds: null,
+				},
+			],
+			experienceLevel: "INTERMEDIATE",
+		});
+		expect(tree.masteryByExerciseId["ex-wall"]?.impliedByProgression).toBe(
+			true,
+		);
+
+		const direct = evaluateDirectExerciseMastery({
+			exercises: CHAIN,
+			setLogs: [
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-incline",
+					reps: 10,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-incline",
+					reps: 10,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-incline",
+					reps: 10,
+					seconds: null,
+				},
+			],
+		});
+
+		expect(direct.awards).toEqual([
+			{ exerciseId: "ex-incline", difficulty: 2, tier: "BRONZE" },
+		]);
+		expect(direct.snapshot).toEqual({
+			bronzeCount: 1,
+			silverCount: 0,
+			goldCount: 0,
+			maxDifficultyMastered: 2,
+			masteredPatternsCount: 1,
+		});
+	});
+
+	it("awards BRONZE, SILVER, and GOLD together when skipping straight to GOLD", () => {
+		const exercises: SkillTreeExerciseInput[] = [
+			{
+				...CHAIN[2],
+				id: "ex-pushup-gold",
+				difficulty: 4,
+				masteryBenchmarks: THREE_TIER_BENCHMARKS,
+			},
+		];
+
+		// 2 chronological consecutive sessions meeting GOLD (4x12 @ RPE <= 8), passed out of order
+		const direct = evaluateDirectExerciseMastery({
+			exercises,
+			setLogs: [
+				{
+					workoutLogId: "w2",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 8,
+					date: "2026-02-04",
+				},
+				{
+					workoutLogId: "w2",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 8,
+					date: "2026-02-04",
+				},
+				{
+					workoutLogId: "w2",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 8,
+					date: "2026-02-04",
+				},
+				{
+					workoutLogId: "w2",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 8,
+					date: "2026-02-04",
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 7,
+					date: "2026-02-01",
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 7,
+					date: "2026-02-01",
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 7,
+					date: "2026-02-01",
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-pushup-gold",
+					reps: 12,
+					seconds: null,
+					rpe: 7,
+					date: "2026-02-01",
+				},
+			],
+		});
+
+		expect(direct.awards).toEqual([
+			{ exerciseId: "ex-pushup-gold", difficulty: 4, tier: "BRONZE" },
+			{ exerciseId: "ex-pushup-gold", difficulty: 4, tier: "SILVER" },
+			{ exerciseId: "ex-pushup-gold", difficulty: 4, tier: "GOLD" },
+		]);
+		expect(direct.snapshot).toEqual({
+			bronzeCount: 1,
+			silverCount: 1,
+			goldCount: 1,
+			maxDifficultyMastered: 4,
+			masteredPatternsCount: 1,
+		});
+	});
+
+	it("awards BRONZE and SILVER when SILVER is reached directly with BRONZE unmet by maxRpe", () => {
+		const exercises: SkillTreeExerciseInput[] = [
+			{
+				id: "ex-lsit",
+				slug: "l-sit",
+				name: "L-Sit",
+				pattern: "SKILL",
+				difficulty: 6,
+				measure: "SECONDS",
+				progressionNextId: null,
+				masteryTargetSets: 2,
+				masteryTargetReps: null,
+				masteryTargetSeconds: 20,
+				masteryBenchmarks: [
+					{
+						tier: "BRONZE",
+						targetSets: 2,
+						targetReps: null,
+						targetSeconds: 15,
+						minConsecutiveSessions: 1,
+						maxRpe: 8,
+						tempo: null,
+						formStandard: null,
+						unlocksNext: true,
+					},
+					{
+						tier: "SILVER",
+						targetSets: 2,
+						targetReps: null,
+						targetSeconds: 25,
+						minConsecutiveSessions: 1,
+						maxRpe: null,
+						tempo: null,
+						formStandard: null,
+						unlocksNext: false,
+					},
+					{
+						tier: "GOLD",
+						targetSets: 2,
+						targetReps: null,
+						targetSeconds: 40,
+						minConsecutiveSessions: 1,
+						maxRpe: null,
+						tempo: null,
+						formStandard: null,
+						unlocksNext: false,
+					},
+				],
+			},
+		];
+
+		const direct = evaluateDirectExerciseMastery({
+			exercises,
+			setLogs: [
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-lsit",
+					reps: null,
+					seconds: 26,
+					rpe: 10,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-lsit",
+					reps: null,
+					seconds: 26,
+					rpe: 10,
+				},
+			],
+		});
+
+		expect(direct.awards).toEqual([
+			{ exerciseId: "ex-lsit", difficulty: 6, tier: "BRONZE" },
+			{ exerciseId: "ex-lsit", difficulty: 6, tier: "SILVER" },
+		]);
+		expect(direct.snapshot).toEqual({
+			bronzeCount: 1,
+			silverCount: 1,
+			goldCount: 0,
+			maxDifficultyMastered: 6,
+			masteredPatternsCount: 1,
+		});
+	});
+
+	it("aggregates distinct mastered patterns, max difficulty, and ignores unknown exercises", () => {
+		const exercises: SkillTreeExerciseInput[] = [
+			{ ...CHAIN[0], id: "ex-push-1", pattern: "PUSH", difficulty: 2 },
+			{ ...CHAIN[0], id: "ex-push-2", pattern: "PUSH", difficulty: 5 },
+			{ ...CHAIN[0], id: "ex-pull-1", pattern: "PULL", difficulty: 7 },
+			{
+				id: "ex-core-1",
+				slug: "hollow-hold",
+				name: "Hollow Hold",
+				pattern: "CORE",
+				difficulty: 3,
+				measure: "SECONDS",
+				progressionNextId: null,
+				masteryTargetSets: 2,
+				masteryTargetReps: null,
+				masteryTargetSeconds: 30,
+			},
+		];
+
+		const direct = evaluateDirectExerciseMastery({
+			exercises,
+			setLogs: [
+				// Unknown exercise ignored
+				{ workoutLogId: "w1", exerciseId: "unknown", reps: 20, seconds: null },
+				// ex-push-1 mastered (BRONZE)
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-push-1",
+					reps: 12,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-push-1",
+					reps: 12,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-push-1",
+					reps: 12,
+					seconds: null,
+				},
+				// ex-push-2 NOT mastered (only 2 sets)
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-push-2",
+					reps: 12,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-push-2",
+					reps: 12,
+					seconds: null,
+				},
+				// ex-pull-1 mastered (BRONZE)
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-pull-1",
+					reps: 12,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-pull-1",
+					reps: 12,
+					seconds: null,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-pull-1",
+					reps: 12,
+					seconds: null,
+				},
+				// ex-core-1 mastered (BRONZE)
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-core-1",
+					reps: null,
+					seconds: 30,
+				},
+				{
+					workoutLogId: "w1",
+					exerciseId: "ex-core-1",
+					reps: null,
+					seconds: 30,
+				},
+			],
+		});
+
+		expect(direct.awards).toEqual([
+			{ exerciseId: "ex-push-1", difficulty: 2, tier: "BRONZE" },
+			{ exerciseId: "ex-pull-1", difficulty: 7, tier: "BRONZE" },
+			{ exerciseId: "ex-core-1", difficulty: 3, tier: "BRONZE" },
+		]);
+		expect(direct.snapshot).toEqual({
+			bronzeCount: 3,
+			silverCount: 0,
+			goldCount: 0,
+			maxDifficultyMastered: 7,
+			masteredPatternsCount: 3,
+		});
 	});
 });

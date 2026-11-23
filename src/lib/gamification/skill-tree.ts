@@ -128,6 +128,25 @@ export type SkillTreeEvaluation<T extends SkillTreeExerciseInput> = {
 	};
 };
 
+export type DirectMasteryAward = {
+	exerciseId: string;
+	difficulty: number;
+	tier: MasteryTierValue;
+};
+
+export type DirectMasterySnapshot = {
+	bronzeCount: number;
+	silverCount: number;
+	goldCount: number;
+	maxDifficultyMastered: number;
+	masteredPatternsCount: number;
+};
+
+export type DirectExerciseMasteryEvaluation = {
+	awards: DirectMasteryAward[];
+	snapshot: DirectMasterySnapshot;
+};
+
 type SessionBucket = {
 	workoutLogId: string;
 	date?: string;
@@ -272,52 +291,21 @@ function getDirectHighestTier(
 	return "NONE";
 }
 
-export function evaluateSkillTree<T extends SkillTreeExerciseInput>(params: {
-	exercises: readonly T[];
-	setLogs: readonly SkillTreeSetLogInput[];
-	experienceLevel: ExperienceLevel;
-	edges?: readonly SkillTreeEdgeInput[];
-}): SkillTreeEvaluation<T> {
-	const { exercises, setLogs } = params;
-	const byId = new Map(exercises.map((ex) => [ex.id, ex]));
-
-	// 1. Resolve DAG edges (or synthesize PROGRESSION edges from legacy progressionNextId)
-	const resolvedEdges: SkillTreeEdgeInput[] =
-		params.edges && params.edges.length > 0
-			? params.edges
-					.filter(
-						(edge) =>
-							edge.fromExerciseId !== edge.toExerciseId &&
-							byId.has(edge.fromExerciseId) &&
-							byId.has(edge.toExerciseId),
-					)
-					.map((edge) => ({ ...edge }))
-					.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
-			: exercises
-					.filter(
-						(ex): ex is T & { progressionNextId: string } =>
-							Boolean(ex.progressionNextId) &&
-							ex.progressionNextId !== ex.id &&
-							byId.has(ex.progressionNextId ?? ""),
-					)
-					.map((ex) => ({
-						id: `synth-${ex.id}-${ex.progressionNextId}`,
-						fromExerciseId: ex.id,
-						toExerciseId: ex.progressionNextId,
-						kind: "PROGRESSION" as const,
-						branchLabel: null,
-						requiredTier: "BRONZE" as const,
-						order: 0,
-					}));
-
-	// 2. Group setLogs per exercise by workoutLogId in chronological order
+function groupSessionsByExercise(
+	exercises: readonly SkillTreeExerciseInput[],
+	setLogs: readonly SkillTreeSetLogInput[],
+): {
+	sessionsByExercise: Map<string, SessionBucket[]>;
+	totalSetsByExercise: Map<string, number>;
+} {
+	const validExerciseIds = new Set(exercises.map((ex) => ex.id));
 	const sessionsByExercise = new Map<string, SessionBucket[]>();
 	const sessionMapByExercise = new Map<string, Map<string, SessionBucket>>();
 	const totalSetsByExercise = new Map<string, number>();
 
 	for (let i = 0; i < setLogs.length; i += 1) {
 		const log = setLogs[i];
-		if (!log || !byId.has(log.exerciseId)) continue;
+		if (!log || !validExerciseIds.has(log.exerciseId)) continue;
 
 		totalSetsByExercise.set(
 			log.exerciseId,
@@ -359,18 +347,138 @@ export function evaluateSkillTree<T extends SkillTreeExerciseInput>(params: {
 		});
 	}
 
+	return { sessionsByExercise, totalSetsByExercise };
+}
+
+function evaluateDirectExerciseTiers(
+	ex: SkillTreeExerciseInput,
+	sessions: readonly SessionBucket[],
+): { tiers: TierProgressItem[]; directHighest: MasteryTierAchieved } {
+	const benchmarks = resolveBenchmarks(ex);
+	const tiers = benchmarks.map((benchmark) =>
+		evaluateTierProgress(ex, benchmark, sessions),
+	);
+	return {
+		tiers,
+		directHighest: getDirectHighestTier(tiers),
+	};
+}
+
+/**
+ * Evaluates direct exercise benchmark mastery without backward propagation or implied Bronze.
+ */
+export function evaluateDirectExerciseMastery(params: {
+	exercises: readonly SkillTreeExerciseInput[];
+	setLogs: readonly SkillTreeSetLogInput[];
+}): DirectExerciseMasteryEvaluation {
+	const { exercises, setLogs } = params;
+	const { sessionsByExercise } = groupSessionsByExercise(exercises, setLogs);
+
+	const awards: DirectMasteryAward[] = [];
+	let bronzeCount = 0;
+	let silverCount = 0;
+	let goldCount = 0;
+	let maxDifficultyMastered = 0;
+	const masteredPatterns = new Set<MovementPattern>();
+
+	for (const ex of exercises) {
+		const { tiers, directHighest } = evaluateDirectExerciseTiers(
+			ex,
+			sessionsByExercise.get(ex.id) ?? [],
+		);
+
+		for (const t of tiers) {
+			if (TIER_RANK[directHighest] >= TIER_RANK[t.tier]) {
+				awards.push({
+					exerciseId: ex.id,
+					difficulty: ex.difficulty,
+					tier: t.tier,
+				});
+			}
+		}
+
+		if (directHighest !== "NONE") {
+			bronzeCount += 1;
+			if (ex.difficulty > maxDifficultyMastered) {
+				maxDifficultyMastered = ex.difficulty;
+			}
+			masteredPatterns.add(ex.pattern);
+		}
+		if (directHighest === "SILVER" || directHighest === "GOLD") {
+			silverCount += 1;
+		}
+		if (directHighest === "GOLD") {
+			goldCount += 1;
+		}
+	}
+
+	return {
+		awards,
+		snapshot: {
+			bronzeCount,
+			silverCount,
+			goldCount,
+			maxDifficultyMastered,
+			masteredPatternsCount: masteredPatterns.size,
+		},
+	};
+}
+
+export function evaluateSkillTree<T extends SkillTreeExerciseInput>(params: {
+	exercises: readonly T[];
+	setLogs: readonly SkillTreeSetLogInput[];
+	experienceLevel: ExperienceLevel;
+	edges?: readonly SkillTreeEdgeInput[];
+}): SkillTreeEvaluation<T> {
+	const { exercises, setLogs } = params;
+	const byId = new Map(exercises.map((ex) => [ex.id, ex]));
+
+	// 1. Resolve DAG edges (or synthesize PROGRESSION edges from legacy progressionNextId)
+	const resolvedEdges: SkillTreeEdgeInput[] =
+		params.edges && params.edges.length > 0
+			? params.edges
+					.filter(
+						(edge) =>
+							edge.fromExerciseId !== edge.toExerciseId &&
+							byId.has(edge.fromExerciseId) &&
+							byId.has(edge.toExerciseId),
+					)
+					.map((edge) => ({ ...edge }))
+					.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id))
+			: exercises
+					.filter(
+						(ex): ex is T & { progressionNextId: string } =>
+							Boolean(ex.progressionNextId) &&
+							ex.progressionNextId !== ex.id &&
+							byId.has(ex.progressionNextId ?? ""),
+					)
+					.map((ex) => ({
+						id: `synth-${ex.id}-${ex.progressionNextId}`,
+						fromExerciseId: ex.id,
+						toExerciseId: ex.progressionNextId,
+						kind: "PROGRESSION" as const,
+						branchLabel: null,
+						requiredTier: "BRONZE" as const,
+						order: 0,
+					}));
+
+	// 2. Group setLogs per exercise by workoutLogId in chronological order
+	const { sessionsByExercise, totalSetsByExercise } = groupSessionsByExercise(
+		exercises,
+		setLogs,
+	);
+
 	// 3. Evaluate direct tier mastery per exercise
 	const directTiersById = new Map<string, TierProgressItem[]>();
 	const highestTierById = new Map<string, MasteryTierAchieved>();
 
 	for (const ex of exercises) {
-		const benchmarks = resolveBenchmarks(ex);
-		const sessions = sessionsByExercise.get(ex.id) ?? [];
-		const tiers = benchmarks.map((benchmark) =>
-			evaluateTierProgress(ex, benchmark, sessions),
+		const { tiers, directHighest } = evaluateDirectExerciseTiers(
+			ex,
+			sessionsByExercise.get(ex.id) ?? [],
 		);
 		directTiersById.set(ex.id, tiers);
-		highestTierById.set(ex.id, getDirectHighestTier(tiers));
+		highestTierById.set(ex.id, directHighest);
 	}
 
 	// 4. Backward propagate BRONZE mastery along incoming PROGRESSION edges (cycle-safe)
