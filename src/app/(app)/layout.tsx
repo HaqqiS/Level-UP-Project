@@ -9,7 +9,7 @@ async function Gate({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
 	return (
-		<div className="flex min-h-dvh flex-col pb-14">
+		<div className="flex min-h-dvh flex-col pb-[calc(5rem+env(safe-area-inset-bottom))]">
 			<Suspense fallback={<div className="flex-1" />}>
 				<Gate>{children}</Gate>
 			</Suspense>

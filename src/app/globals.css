@@ -58,6 +58,7 @@
 }
 
 :root {
+	color-scheme: light;
 	--background: oklch(0.9821 0 0);
 	--foreground: oklch(0.2435 0 0);
 	--card: oklch(0.9911 0 0);
@@ -102,6 +103,7 @@
 }
 
 .dark {
+	color-scheme: dark;
 	--background: oklch(0.1776 0 0);
 	--foreground: oklch(0.9491 0 0);
 	--card: oklch(0.2134 0 0);
@@ -118,7 +120,7 @@
 	--accent-foreground: oklch(0.9491 0 0);
 	--destructive: oklch(0.6271 0.1936 33.339);
 	--destructive-foreground: oklch(1 0 0);
-	--border: oklch(0.2351 0.0115 91.7467);
+	--border: oklch(0.285 0.0115 75);
 	--input: oklch(0.4017 0 0);
 	--ring: oklch(0.9247 0.0524 66.1732);
 	--chart-1: oklch(0.9247 0.0524 66.1732);
@@ -135,11 +137,11 @@
 	--sidebar-border: oklch(0.2739 0.0055 286.0326);
 	--sidebar-ring: oklch(0.8711 0.0055 286.286);
 	--success: var(--color-emerald-500);
-	--success-foreground: var(--color-emerald-600);
+	--success-foreground: var(--color-emerald-400);
 	--info: var(--color-violet-500);
-	--info-foreground: var(--color-violet-600);
+	--info-foreground: var(--color-violet-400);
 	--warning: var(--color-yellow-500);
-	--warning-foreground: var(--color-yellow-600);
+	--warning-foreground: var(--color-amber-300);
 	--invert: var(--color-zinc-700);
 	--invert-foreground: var(--color-zinc-50);
 }
