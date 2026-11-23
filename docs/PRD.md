@@ -8,7 +8,7 @@ People start calisthenics but quit because programs feel generic and progress fe
 - Make training feel like a game so users stay consistent.
 - Give every user a personal, adaptive program regardless of level.
 - Make body, wellness, and performance progress measurable and visual.
-- Work on a phone like a native app, including offline logging (v1), push reminders (v1.5), Light/Dark/System themes (v2), and Consistency Dashboard Metrics (v2.5).
+- Work on a phone like a native app, including offline logging (v1), push reminders (v1.5), Light/Dark/System themes (v2), Consistency Dashboard Metrics (v2.5), and Rank `F → S` progression with equipable titles (v2.6).
 
 **Non‑goals (for now)**
 - Public scale, monetization, or social features (until Later phase).
@@ -53,9 +53,9 @@ Primary users today: the owner and family members.
 - As a user, if the AI fails, I still get the planned session.
 
 ### Quests, Gamification & Push Reminders
-- As a user, I see today's quest (session + 1–2 side quests) and weekly quests, and earn XP when I complete them.
-- As a user, I level up, keep a streak, and rest days don't break it.
-- As a user, I can clearly see and use one streak freeze per week (polished freeze indicator & interaction).
+- As a user, I see today's quest (session `120 XP` on training days or active recovery `25 XP` on rest days, plus `2` side quests at `15 XP` each — with the hydration side quest auto-completing when `/calendar` logs `hydrationMl >= 2000`) and `3` weekly quests (`150 XP` each), and earn deterministic session (`20–120 XP`), streak bonus (`+10 XP × streak`, capped at `50 XP`), and **Direct Mastery XP** (`Bronze`/`Silver`/`Gold` Skill Tree benchmarks, idempotent per `(exerciseId, tier)` without implied Bronze propagation).
+- As a user, I climb stepped **Rank Tiers (`F → S`)** formatted consistently across `/today` and `/profile` as `Rank <Tier> · Lv <1–10>` (and unlimited `Rank S · Lv 1, 2, ...` from `66,000 XP`), clear Hybrid **Promotion Trials** (combining XP thresholds with Skill Tree direct mastery gates) while safely banking any `overflowXp` above `X-10`, and automatically unlock higher AI training bands via a one-way `Profile.experienceLevel` floor (`E–D >= BEGINNER`, `C–B >= INTERMEDIATE`, `A–S >= ADVANCED`, never downgrading existing advanced users).
+- As a user, I keep a streak across scheduled training days (rest days are neutral) and can clearly see and use one streak freeze per ISO week (polished freeze indicator & interaction).
 - As a user, I can opt in to **Push Reminders** in `/profile` → `Settings` (with preset times or a 24-hour **ReUI `TimePicker`** for custom time) so I get a Web Push notification on my scheduled training days if I haven't logged a session yet, plus optional H-2 upcoming period reminders when cycle tracking is enabled.
 
 ### Workout Logger & Anatomical Muscle Map / Heatmap
@@ -80,7 +80,7 @@ Primary users today: the owner and family members.
 
 ### Profile, Dashboard Metrics & Body Tracking (`/profile`)
 - As a user, I navigate a clean 4-tab **Profile** hub (`/profile`):
-  - **Overview:** compact identity card + Achievements grid.
+  - **Overview:** compact identity card (displaying equipped title), `ProfileRankCard` (`Rank <Tier> · Lv <1–10>`, overflow/Promotion Trial progress, and title trigger), `TitlePickerSheet` to equip/unequip unlocked achievement titles, and `AchievementsGrid` (**17** achievements: `8` legacy + `3` mastery + `6` rank milestones).
   - **Metrics (v2.5):** Consistency & Adherence analytics with a global `7D / 30D / 90D / All` timeframe switcher, KPI summary cards with period-over-period deltas (`Adherence %`, `Sessions done`, `Training time`, `Streak & freeze`), a multi-series **Scheduled vs Completed** bar chart (adaptive daily/weekly/monthly buckets), a **Training Duration** area trend against scheduled targets, an interactive **Consistency Grid** with tap-to-inspect day details, and a Mon–Sun **Day-of-Week Adherence** breakdown highlighting strongest and most-missed training days.
   - **Body:** KPI summary, unified **Log weight** card with collapsible *Recent entries*, 30d/90d trend chart, and batch **Body measurements** (`Waist`, `Chest`, `Arm` saved together) with collapsible grouped *Measurement history*.
   - **Settings:** Appearance theme selector (`Light`/`Dark`/`System`), iOS-style grouped Preferences (Cycle & Period sheet, Push Reminders sheet), Account actions (Redo onboarding, Sign out), and a Danger Zone **Delete account** flow that permanently erases all account data (PostgreSQL cascade + browser push unsubscribe + offline IndexedDB clear).
@@ -95,6 +95,7 @@ Primary users today: the owner and family members.
 | **v1.5** | Done | Route consolidation (`Today + Plan + Log` → `/today`, `Body + Profile` → `/profile`, 4-tab Bottom Nav) · onboarding card refinement · streak freeze UI polish · Push reminders (Web Push VAPID + scheduled cron) |
 | **v2** | Done | Relational v2 schema · period-aware onboarding & AI planner (luteal-anchored cycle phases, H-2 push reminders, no fertile window) · Gemini 3.8 Flash fallback chain (`gemini-3.8-flash` → `gemini-3.1-flash-lite` → `gemini-3.5-flash-lite`) + `"Regenerate with AI"` retry · borderless filterable Calendar wellness tracker (`/calendar`) with debounced auto-save, custom items & cycle history · 26-region Male/Female MIT anatomical Muscle Map (`Logged`/`Planned`, `Today`/`Weekly`/`30d`, hover tooltip & breakdown sheet) · 116-exercise 3-tier (`Bronze`/`Silver`/`Gold`) DAG Skill Tree (18 zero-equipment foundations & global-tier compaction) · Light/Dark/System theme (`next-themes`) · Apple HIG floating tab bar & Card-Only UI remodel · ReUI `TimePicker` (Sleep Duration & Push Reminders) · batch Body Measurements & collapsible history · 3-tab `/profile` hub + permanent Delete Account |
 | **v2.5** | Done | Consistency & Adherence Dashboard Metrics in `/profile?tab=metrics` (`7D`/`30D`/`90D`/`All` timeframes, period deltas, high-contrast `--chart-1..5` palette, Scheduled vs Completed bar chart, Duration area trend, interactive 12-week Consistency Grid, Mon–Sun adherence breakdown) |
+| **v2.6** | Done | Gamification Rank Tiers (`F → S`) with stepped XP curve & unlimited `Rank S` · Direct Mastery XP (`XpSource.MASTERY`) · Rebalanced quest/session/streak economy + `/calendar` hydration auto-quest · Hybrid Model A+B Promotion Trials with banked `overflowXp` · One-way `Profile.experienceLevel` floor · **17** achievements with equipable titles (`ProfileRankCard`, `TitlePickerSheet`, `AchievementsGrid`, `equipTitleAction`) |
 | **Later** | Planned | Indonesian localization (`messages/id.json` + language switcher) · data export (JSON/CSV) · exercise videos · social/leaderboard · production deployment |
 
 ## 5. Acceptance Criteria
@@ -121,6 +122,12 @@ Primary users today: the owner and family members.
 
 ### v2.5 (Delivered)
 - **Consistency & Adherence Dashboard (`/profile?tab=metrics`):** Zero-migration metrics computed deterministically from `WorkoutLog` and `Profile` with full streak/freeze parity against `evaluateStreakHistory()`; global `7D / 30D / 90D / All` client-side timeframe switching with new-account window clamping (`effectiveStartKey`), pending-today non-penalty semantics, `null`-guarded period-over-period deltas (`7D`/`30D`/`90D`), adaptive `day` / `week` / `month` (`>16` weeks) bucketing, null-duration exclusion from average duration, `ResizeObserver`-measured Recharts (`BarChart` + `AreaChart` with `ReferenceLine`) using high-contrast Light/Dark `--chart-1..5` tokens, tap-to-inspect Consistency Grid (up to 12 weeks), and Mon–Sun adherence breakdown identifying strongest and most-missed training days.
+
+### v2.6 (Delivered)
+- **Rank Tiers & Stepped XP Curve (`F → S`):** Ranks progress `F → E → D → C → B → A → S` formatted consistently across `/profile` and `/today` as `Rank <Tier> · Lv <1–10>` (and unlimited `Rank S · Lv 1, 2, ...` from `66,000 XP`), using stepped per-level XP (`F: 300`, `E: 500`, `D: 800`, `C: 1,200`, `B: 1,600`, `A: 2,200`, `S: 2,500 XP/lv`).
+- **Direct Mastery XP (`XpSource.MASTERY`) & Rebalanced Economy:** Direct Skill Tree benchmarks award `Bronze` (`40 + diff*10`, `50–140 XP`), `Silver` (`80 + diff*15`, `95–230 XP`), and `Gold` (`140 + diff*25`, `165–390 XP`) idempotently per `(exerciseId, tier)` without awarding XP for backward-propagated/implied Bronze parents; rebalanced economy delivers `20–120 XP` per session, `+10 XP × streak` bonus (cap `50 XP`), `25 XP` rest-day active recovery quest, `15 XP × 2/day` side quests (with hydration auto-completing from `/calendar` `hydrationMl >= 2000`), and `150 XP × 3/week` weekly quests.
+- **Hybrid Model A+B Promotion Trials, Overflow XP & One-Way Experience Floor:** Advancing across tier boundaries requires both cumulative XP and direct Skill Tree mastery gates (`F→E`: `2` Bronze+; `E→D`: `5` Bronze+, `2` Silver+; `D→C`: `8` Bronze+, `4` Silver+, `1` diff `≥ 3`; `C→B`: `12` Bronze+, `6` Silver+, `2` Gold, `1` diff `≥ 5`; `B→A`: `16` Bronze+, `8` Silver+, `4` Gold, `1` diff `≥ 6`; `A→S`: `20` Bronze+, `10` Silver+, `6` Gold, `1` diff `≥ 7`, `3+` distinct patterns); XP above `X-10` is banked in `overflowXp` (never lost) while awaiting trial completion. On rank-up, `Profile.experienceLevel` upgrades upward if below the tier floor (`E–D >= BEGINNER`, `C–B >= INTERMEDIATE`, `A–S >= ADVANCED`) and never downgrades existing advanced users.
+- **17 Achievements & Equipable Titles:** Catalog expands to **17** achievements (`8` legacy + `3` mastery + `6` rank milestones), each unlocking a `titleReward` that users can equip or unequip on `/profile` Overview (`ProfileRankCard` + `TitlePickerSheet` + `AchievementsGrid`, backed by `equipTitleAction` in `src/server/actions/gamification.ts`).
 
 ## 6. Health & Safety
 

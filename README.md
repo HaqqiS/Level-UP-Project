@@ -2,7 +2,7 @@
 
 A gamified Progressive Web App for calisthenics training. Daily and weekly quests, XP, levels, and streaks keep you consistent, while an AI planner builds a personal program that adapts week by week and day by day.
 
-> **Status:** v2.5 delivered (Consistency & Adherence Dashboard Metrics in `/profile?tab=metrics`); Later roadmap items planned next.
+> **Status:** v2.6 delivered (Gamification Rank Tiers `F → S`, Direct Mastery XP, Promotion Trials & Equipable Titles); Later roadmap items planned next.
 > **Audience:** All levels — from never trained to advanced skill work.
 > **Scope:** Personal / family use, portfolio & learning project.
 
@@ -18,7 +18,7 @@ A gamified Progressive Web App for calisthenics training. Daily and weekly quest
 | **Calendar Wellness Tracker** | Borderless `/calendar` tracking period flow, pain tags, supplements, medications, sleep duration (ReUI 24h `TimePicker`), and readiness/hydration/notes. |
 | **26-Region Anatomical Muscle Map** | Male/Female front & back SVG heatmap (`Trained` vs `Planned`, `Today`/`Weekly`/`30d`) with hover tooltips and tap breakdown sheets. |
 | **Exercise Library & 3-Tier DAG Skill Tree** | **116** curated exercises (including **18** zero-equipment foundations), `Bronze`/`Silver`/`Gold` mastery benchmarks, interactive Skill Tree DAG canvas/tier list, and AI discovery (`unverified`). |
-| **Quests & Gamification** | Daily/side/weekly quests, XP, levels, streaks (rest days don't break it), weekly streak freeze, and achievements — all deterministic in code, never AI. |
+| **Quests & Gamification (v2.6)** | Stepped `Rank F → S` progression (`Rank <Tier> · Lv 1–10`, unlimited `Rank S`), Direct Mastery XP (`XpSource.MASTERY`), Hybrid Promotion Trials with banked `overflowXp`, one-way `Profile.experienceLevel` floor, daily/side/weekly quests (with `/calendar` hydration auto-completion), streaks (rest days don't break it), weekly streak freeze, and **17** achievements with equipable titles — all deterministic in code, never AI. |
 | **Workout Logger** | 1–2 tap set logging (reps/duration) with offline‑first Dexie queue and idempotent sync. |
 | **Body Tracking** | Weight log + 30d/90d trend chart and batch measurements (`WAIST`, `CHEST`, `ARM`) with unified collapsible history. |
 | **Dashboard Metrics (v2.5)** | Consistency & Adherence analytics in `/profile?tab=metrics` (`7D`/`30D`/`90D`/`All`, period deltas, Scheduled vs Completed chart, Training Duration trend, 12-week Consistency Grid, and Mon–Sun adherence breakdown). |
@@ -70,6 +70,7 @@ Google OAuth redirect URI: `http://localhost:3000/api/auth/callback/google`
 - [x] **v1.5** — 4-tab route consolidation (`/today`, `/calendar`, `/exercises`, `/profile`), onboarding & streak freeze polish, Web Push reminders (VAPID + cron)
 - [x] **v2** — Relational v2 schema, period-aware onboarding & AI planner (no fertile window, H-2 reminders), borderless filterable Calendar wellness tracker, 26-region Male/Female anatomical Muscle Map, 116-exercise 3-tier DAG Skill Tree (18 zero-equipment foundations), Light/Dark/System themes, Apple HIG floating tab bar, Card-Only UI remodel, ReUI TimePicker & batch body measurements, permanent Delete Account
 - [x] **v2.5** — Dashboard metrics (Consistency & Adherence analytics in `/profile?tab=metrics`)
+- [x] **v2.6** — Gamification Rank Tiers (`F → S`), Direct Mastery XP (`XpSource.MASTERY`), Hybrid Promotion Trials with banked `overflowXp`, one-way `Profile.experienceLevel` floor, rebalanced XP/quest economy (with `/calendar` hydration auto-quest), and **17** achievements with equipable titles
 - [ ] **Later** — Indonesian localization (`messages/id.json` + language switcher), data export (JSON/CSV), exercise videos, social/leaderboard, production deployment
 
 *(Progress photos and AI chat coach were cancelled in [DECISIONS.md](docs/DECISIONS.md) ADR #014.)*

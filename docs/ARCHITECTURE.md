@@ -51,14 +51,14 @@ src/
 │   ├── ai/               # model fallback chain (model-config.ts), wire & domain Zod schemas, safety bounds
 │   ├── body/             # BMI, weight trend points, batch measurement schemas & history grouping
 │   ├── exercises/        # eligibility, 26-region muscles, heatmap aggregator, DAG validator
-│   ├── gamification/     # xp, level, streak, quests, achievements, 3-tier skill tree & layout (pure TS)
+│   ├── gamification/     # rank tiers F–S, xp, promotion trials, streak, quests, achievements & titles, 3-tier skill tree & layout (pure TS)
 │   ├── metrics/          # deterministic consistency, adherence, delta, bucket & heatmap aggregator (pure TS)
 │   ├── wellness/         # luteal-anchored cycle engine, sleep duration, wellness schemas (pure TS)
 │   ├── validation/       # onboarding & delete-account Zod schemas
 │   ├── push/             # Web Push VAPID sender & reminder eligibility logic
 │   └── offline/          # Dexie schema, queue merge logic, optimistic offline logger hook
 ├── server/
-│   ├── actions/          # thin auth-checked server actions (account, body, onboarding, plan, push, wellness, workout)
+│   ├── actions/          # thin auth-checked server actions (account, body, gamification, onboarding, plan, push, wellness, workout)
 │   └── services/         # business logic services
 ├── sw.ts                 # Serwist Service Worker source (precaching + Web Push handlers)
 messages/en.json          # id.json later
@@ -118,9 +118,9 @@ Better Auth owns `user`, `session`, `account`, `verification`. All 16 user-owned
 | `daily_checkin` | date, energy (1–5), soreness (1–5), painAreas[], minutesAvailable |
 | `workout_log` / `set_log` | clientId (UUID, idempotent sync), startedAt, completedAt / reps, seconds, rpe |
 | `quest` | type (`DAILY/WEEKLY/SIDE`), key, target, progress, status, date, xpReward |
-| `xp_event` | source (`QUEST/SESSION/STREAK/BADGE`), amount, refId, createdAt |
-| `user_stats` | totalXp, level, currentStreak, longestStreak, freezesAvailable, freezeWeekKey?, lastActiveDate? |
-| `achievement` / `user_achievement` | key, criteria / unlockedAt |
+| `xp_event` | source (`SESSION/QUEST/STREAK/BADGE/MASTERY`), amount, refId, createdAt |
+| `user_stats` | totalXp, level, rankTier (`F/E/D/C/B/A/S`), tierLevel, equippedTitleKey?, currentStreak, longestStreak, freezesAvailable, freezeWeekKey?, lastActiveDate? |
+| `achievement` / `user_achievement` | key, title, description, category, xpReward, titleReward? / unlockedAt |
 | `ai_usage` | kind (`WEEKLY/DAILY/DISCOVERY`), date, tokens, success |
 
 ## 4. AI Flows
@@ -195,10 +195,17 @@ const WeeklyPlanSchema = z.object({
 
 Pure, unit‑tested TypeScript modules in `src/lib/gamification`, `src/lib/exercises`, `src/lib/metrics`, and `src/lib/wellness`:
 
-- **XP:** session completed = `100 × completion ratio`; side quest = `25`; weekly quest = `200`; streak bonus = `+5` per streak day (cap `50`).
-- **Level curve:** `xpForLevel(n) = 100 × n^1.5` (cumulative).
+- **XP Economy (v2.6):**
+  - Session completed = `20–120 XP` (`max(20, round(120 × completion ratio))`); streak bonus = `+10 XP × streak` (cap `50 XP`).
+  - Daily quest = `120 XP` (training day) or `25 XP` (rest-day active recovery quest); side quests = `15 XP × 2/day` (with hydration quest `side-hydrate` auto-completing from `/calendar` when `hydrationMl >= 2000`); weekly quests = `150 XP × 3/week`.
+  - **Direct Mastery XP (`XpSource.MASTERY`):** `evaluateDirectExerciseMastery()` in `skill-tree.ts` awards XP strictly for directly achieved Skill Tree benchmarks (no XP from backward-propagated/implied Bronze parents): `BRONZE` = `40 + diff*10` (`50–140 XP`), `SILVER` = `80 + diff*15` (`95–230 XP`), `GOLD` = `140 + diff*25` (`165–390 XP`), idempotent per `(exerciseId, tier)` (`computeMasteryXp`).
+- **Stepped Rank Tiers (`F → S`), Promotion Trials & Experience Floor:**
+  - Tiers `F, E, D, C, B, A, S` format consistently across `/today` (`GamificationBar`) and `/profile` (`ProfileRankCard`) as `Rank <Tier> · Lv <1–10>` (and unlimited `Rank S · Lv 1, 2, ...` from `66,000 XP`).
+  - Stepped XP per level: `F: 300 XP/lv` (`0–3,000`), `E: 500` (`3,000–8,000`), `D: 800` (`8,000–16,000`), `C: 1,200` (`16,000–28,000`), `B: 1,600` (`28,000–44,000`), `A: 2,200` (`44,000–66,000`), and unlimited `S: 2,500 XP/lv` (`66,000+`).
+  - **Hybrid Model A+B Promotion Trials (`evaluateRankProgress`, `evaluatePromotionGate`):** advancing past `X-10` requires both cumulative entry XP and direct Skill Tree mastery gates (`F→E`: `2` Bronze+; `E→D`: `5` Bronze+, `2` Silver+; `D→C`: `8` Bronze+, `4` Silver+, `1` diff `≥ 3`; `C→B`: `12` Bronze+, `6` Silver+, `2` Gold, `1` diff `≥ 5`; `B→A`: `16` Bronze+, `8` Silver+, `4` Gold, `1` diff `≥ 6`; `A→S`: `20` Bronze+, `10` Silver+, `6` Gold, `1` diff `≥ 7`, `3+` distinct patterns). XP accumulated past `X-10` while awaiting trial completion is banked in `overflowXp` (never lost).
+  - **One-Way Experience Floor (`resolveEffectiveExperienceLevel`):** on rank-up, `Profile.experienceLevel` upgrades upward if below the tier floor (`E–D >= BEGINNER`, `C–B >= INTERMEDIATE`, `A–S >= ADVANCED`) and never downgrades existing advanced users at lower ranks.
 - **Streak:** counts scheduled training days completed. Rest days are neutral. A missed training day consumes a freeze if available (1 per ISO week), otherwise resets.
-- **Quests & Achievements:** daily quest derived from today's planned session + side quests + weekly quests + deterministic achievement catalog.
+- **Quests, Achievements & Equipable Titles:** daily quest derived from today's planned session + side quests + weekly quests + **17** deterministic achievements (`8` legacy + `3` mastery + `6` rank milestones), each unlocking a `titleReward` equipable/unequipable on `/profile` Overview via `ProfileRankCard`, `TitlePickerSheet`, and `AchievementsGrid` (`equipTitleAction` in `src/server/actions/gamification.ts`).
 - **3-Tier DAG Skill Tree (`skill-tree.ts`, `skill-tree-layout.ts`):** evaluates `BRONZE`, `SILVER`, and `GOLD` mastery per exercise from `SetLog` history, unlocks downstream nodes via multi-parent `ExerciseEdge` prerequisites (`Locked`, `On going`, `Mastered`), and uses global-tier compaction so `Never trained` foundation exercises anchor the lowest tier cleanly.
 - **Consistency & Adherence Engine (`src/lib/metrics/consistency.ts`, `src/server/services/metrics-service.ts`):** computes `7D` / `30D` / `90D` / `All` adherence metrics from `WorkoutLog` and `Profile` with exact streak/freeze parity (`evaluateStreakHistory()`), new-account window clamping, pending-today non-penalty rules, period-over-period deltas (`7D`/`30D`/`90D`), adaptive `day` / `week` / `month` (`>16w`) bucketing, tap-inspectable heatmap cells (`≤ 12` weeks), and Mon–Sun weekday breakdown.
 - **Cycle & Wellness Engine (`cycle-engine.ts`, `cycle-and-wellness.ts`):** reconciles discrete daily period logs into `MenstrualCycle` episodes, computes luteal-anchored cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal` — no fertile window), protects configured `averagePeriodDays` / `averageCycleDays` against ongoing partial episodes, and predicts upcoming period windows.
