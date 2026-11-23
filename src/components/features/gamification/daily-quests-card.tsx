@@ -87,7 +87,9 @@ function QuestRow({
 			</ItemContent>
 			<ItemActions className="shrink-0">
 				<Badge variant={isDone ? "success-light" : "secondary"} size="sm">
-					{t("quests.xpReward", { xp: quest.xpReward })}
+					{quest.type === "DAILY" && !isRestDay
+						? t("quests.sessionXpReward", { xp: quest.xpReward })
+						: t("quests.xpReward", { xp: quest.xpReward })}
 				</Badge>
 				{!isDone && canOneTap && (
 					<Button size="xs" disabled={pending} onClick={handleComplete}>

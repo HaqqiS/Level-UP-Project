@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BodyTrackingView } from "@/components/features/body/body-tracking-view";
 import { AchievementsGrid } from "@/components/features/gamification/achievements-grid";
+import { ProfileRankCard } from "@/components/features/gamification/profile-rank-card";
+import { toGamificationSummary } from "@/components/features/gamification/types";
 import { MetricsDashboardView } from "@/components/features/metrics/metrics-dashboard-view";
 import {
 	ProfileHubTabs,
@@ -9,23 +11,12 @@ import {
 } from "@/components/features/profile/profile-hub-tabs";
 import { ProfileSettingsTab } from "@/components/features/profile/profile-settings-tab";
 import { InstallPromptBanner } from "@/components/features/pwa/install-prompt-banner";
-import { Badge } from "@/components/reui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireOnboarded } from "@/lib/auth/session";
 import { getBodyTrackingData } from "@/server/services/body-metric-service";
 import { getAchievementsForUser } from "@/server/services/gamification-service";
 import { getConsistencyMetricsData } from "@/server/services/metrics-service";
 import { getReminderStateForUser } from "@/server/services/push-reminder-service";
-
-function getInitials(name: string) {
-	return name
-		.split(/\s+/)
-		.filter(Boolean)
-		.slice(0, 2)
-		.map((part) => part[0]?.toUpperCase() ?? "")
-		.join("");
-}
 
 function normalizeProfileTab(raw?: string): ProfileTab {
 	if (raw === "metrics" || raw === "body" || raw === "settings") return raw;
@@ -37,68 +28,42 @@ async function ProfileDetails({
 }: {
 	searchParams: Promise<{ tab?: string }>;
 }) {
-	const t = await getTranslations();
 	const resolvedParams = await searchParams;
 	const initialTab = normalizeProfileTab(resolvedParams.tab);
 	const { session, profile } = await requireOnboarded();
 
-	const [{ achievements }, metricsData, bodyData, reminderState] =
-		await Promise.all([
-			getAchievementsForUser(session.user.id),
-			getConsistencyMetricsData(session.user.id, profile),
-			getBodyTrackingData(session.user.id),
-			getReminderStateForUser(session.user.id),
-		]);
+	const [
+		{ stats, achievements, experienceLevel },
+		metricsData,
+		bodyData,
+		reminderState,
+	] = await Promise.all([
+		getAchievementsForUser(session.user.id),
+		getConsistencyMetricsData(session.user.id, profile),
+		getBodyTrackingData(session.user.id),
+		getReminderStateForUser(session.user.id),
+	]);
+
+	const serializedStats = toGamificationSummary(stats);
 
 	const overviewContent = (
 		<>
-			<Card size="sm">
-				<CardContent className="space-y-3">
-					<div className="flex items-center gap-3">
-						<Avatar size="lg">
-							{session.user.image && (
-								<AvatarImage src={session.user.image} alt={session.user.name} />
-							)}
-							<AvatarFallback>{getInitials(session.user.name)}</AvatarFallback>
-						</Avatar>
-						<div className="min-w-0">
-							<p className="truncate text-sm font-semibold">
-								{session.user.name}
-							</p>
-							<p className="truncate text-xs text-muted-foreground">
-								{session.user.email}
-							</p>
-						</div>
-					</div>
+			<ProfileRankCard
+				user={{
+					name: session.user.name,
+					email: session.user.email,
+					image: session.user.image ?? null,
+				}}
+				stats={serializedStats}
+				achievements={achievements}
+				experienceLevel={experienceLevel}
+				trainingDays={profile.trainingDays}
+			/>
 
-					<div className="space-y-2.5 rounded-2xl bg-muted/50 p-3">
-						<div className="flex items-center justify-between gap-2 text-sm">
-							<span className="text-muted-foreground">
-								{t("profile.level")}
-							</span>
-							<Badge variant="secondary">
-								{t(`onboarding.experience.${profile.experienceLevel}`)}
-							</Badge>
-						</div>
-						<div className="flex items-center justify-between gap-2 text-sm">
-							<span className="shrink-0 text-muted-foreground">
-								{t("profile.days")}
-							</span>
-							<div className="flex flex-wrap justify-end gap-1">
-								{profile.trainingDays.map((day) => (
-									<Badge key={day} variant="outline">
-										{t(
-											`onboarding.schedule.dayNames.${day}` as "onboarding.schedule.dayNames.0",
-										)}
-									</Badge>
-								))}
-							</div>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-
-			<AchievementsGrid achievements={achievements} />
+			<AchievementsGrid
+				achievements={achievements}
+				equippedTitleKey={serializedStats.equippedTitleKey ?? null}
+			/>
 		</>
 	);
 

@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { GamificationBar } from "@/components/features/gamification/gamification-bar";
+import { toGamificationSummary } from "@/components/features/gamification/types";
 import { resolveBodyMapGender } from "@/components/features/muscles/body-map-paths";
 import {
 	TrainHubTabs,
@@ -155,7 +156,7 @@ async function TodayContent({
 
 	return (
 		<>
-			<GamificationBar stats={stats} />
+			<GamificationBar stats={toGamificationSummary(stats)} />
 			<TrainHubTabs
 				initialTab={initialTab}
 				bodyMapGender={resolveBodyMapGender(profile.sex)}
