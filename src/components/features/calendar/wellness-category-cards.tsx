@@ -21,14 +21,15 @@ import {
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameDescription,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
+import { TimePicker } from "@/components/reui/time-picker";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -283,25 +284,23 @@ export function WellnessCategoryCards({
 			{tracksPeriod &&
 				visibleSet.has("period") &&
 				filteredPeriod.length > 0 && (
-					<Frame spacing="sm">
-						<FrameHeader>
-							<div className="flex items-center justify-between gap-2">
-								<FrameTitle className="flex items-center gap-2">
-									<Droplets className="size-4 text-destructive" />
-									{t("periodTitle")}
-								</FrameTitle>
-								<Button
-									type="button"
-									variant="ghost"
-									size="xs"
-									onClick={() => onOpenLearnMore("period")}
-								>
-									<Info className="size-3.5" />
-									{t("learnMoreLink")}
-								</Button>
-							</div>
-						</FrameHeader>
-						<FramePanel className="space-y-2">
+					<Card size="sm">
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2">
+								<Droplets className="size-4 shrink-0 text-destructive" />
+								{t("periodTitle")}
+							</CardTitle>
+							<Button
+								type="button"
+								variant="ghost"
+								size="xs"
+								onClick={() => onOpenLearnMore("period")}
+							>
+								<Info className="size-3.5" />
+								{t("learnMoreLink")}
+							</Button>
+						</CardHeader>
+						<CardContent className="space-y-2">
 							<ToggleGroup
 								variant="outline"
 								className="w-full flex-wrap"
@@ -334,30 +333,28 @@ export function WellnessCategoryCards({
 									onChange={(next) => patchDraft({ crampSeverity: next })}
 								/>
 							)}
-						</FramePanel>
-					</Frame>
+						</CardContent>
+					</Card>
 				)}
 
 			{visibleSet.has("pain") && filteredPain.length > 0 && (
-				<Frame spacing="sm">
-					<FrameHeader>
-						<div className="flex items-center justify-between gap-2">
-							<FrameTitle className="flex items-center gap-2">
-								<HeartPulse className="size-4 text-primary" />
-								{t("painTitle")}
-							</FrameTitle>
-							<Button
-								type="button"
-								variant="ghost"
-								size="xs"
-								onClick={() => onOpenLearnMore("pain")}
-							>
-								<Info className="size-3.5" />
-								{t("learnMoreLink")}
-							</Button>
-						</div>
-					</FrameHeader>
-					<FramePanel className="space-y-3">
+				<Card size="sm">
+					<CardHeader className="flex flex-row items-center justify-between gap-2">
+						<CardTitle className="flex items-center gap-2">
+							<HeartPulse className="size-4 shrink-0 text-primary" />
+							{t("painTitle")}
+						</CardTitle>
+						<Button
+							type="button"
+							variant="ghost"
+							size="xs"
+							onClick={() => onOpenLearnMore("pain")}
+						>
+							<Info className="size-3.5" />
+							{t("learnMoreLink")}
+						</Button>
+					</CardHeader>
+					<CardContent className="space-y-3">
 						<ToggleGroup
 							multiple
 							variant="outline"
@@ -460,31 +457,29 @@ export function WellnessCategoryCards({
 								})}
 							</div>
 						)}
-					</FramePanel>
-				</Frame>
+					</CardContent>
+				</Card>
 			)}
 
 			{visibleSet.has("supplements") &&
 				(filteredPresetSupps.length > 0 || filteredCustomSupps.length > 0) && (
-					<Frame spacing="sm">
-						<FrameHeader>
-							<div className="flex items-center justify-between gap-2">
-								<FrameTitle className="flex items-center gap-2">
-									<Sparkles className="size-4 text-primary" />
-									{t("supplementsTitle")}
-								</FrameTitle>
-								<Button
-									type="button"
-									variant="ghost"
-									size="xs"
-									onClick={() => onOpenLearnMore("supplements")}
-								>
-									<Info className="size-3.5" />
-									{t("learnMoreLink")}
-								</Button>
-							</div>
-						</FrameHeader>
-						<FramePanel className="space-y-3">
+					<Card size="sm">
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2">
+								<Sparkles className="size-4 shrink-0 text-primary" />
+								{t("supplementsTitle")}
+							</CardTitle>
+							<Button
+								type="button"
+								variant="ghost"
+								size="xs"
+								onClick={() => onOpenLearnMore("supplements")}
+							>
+								<Info className="size-3.5" />
+								{t("learnMoreLink")}
+							</Button>
+						</CardHeader>
+						<CardContent className="space-y-3">
 							<ToggleGroup
 								multiple
 								variant="outline"
@@ -579,31 +574,29 @@ export function WellnessCategoryCards({
 									{t("addCustomButton")}
 								</Button>
 							</div>
-						</FramePanel>
-					</Frame>
+						</CardContent>
+					</Card>
 				)}
 
 			{visibleSet.has("medications") &&
 				(filteredPresetMeds.length > 0 || filteredCustomMeds.length > 0) && (
-					<Frame spacing="sm">
-						<FrameHeader>
-							<div className="flex items-center justify-between gap-2">
-								<FrameTitle className="flex items-center gap-2">
-									<Pill className="size-4 text-primary" />
-									{t("medicationsTitle")}
-								</FrameTitle>
-								<Button
-									type="button"
-									variant="ghost"
-									size="xs"
-									onClick={() => onOpenLearnMore("medications")}
-								>
-									<Info className="size-3.5" />
-									{t("learnMoreLink")}
-								</Button>
-							</div>
-						</FrameHeader>
-						<FramePanel className="space-y-3">
+					<Card size="sm">
+						<CardHeader className="flex flex-row items-center justify-between gap-2">
+							<CardTitle className="flex items-center gap-2">
+								<Pill className="size-4 shrink-0 text-primary" />
+								{t("medicationsTitle")}
+							</CardTitle>
+							<Button
+								type="button"
+								variant="ghost"
+								size="xs"
+								onClick={() => onOpenLearnMore("medications")}
+							>
+								<Info className="size-3.5" />
+								{t("learnMoreLink")}
+							</Button>
+						</CardHeader>
+						<CardContent className="space-y-3">
 							<ToggleGroup
 								multiple
 								variant="outline"
@@ -698,18 +691,18 @@ export function WellnessCategoryCards({
 									{t("addCustomButton")}
 								</Button>
 							</div>
-						</FramePanel>
-					</Frame>
+						</CardContent>
+					</Card>
 				)}
 
 			{showSleep && (
-				<Frame spacing="sm">
-					<FrameHeader>
+				<Card size="sm">
+					<CardHeader>
 						<div className="flex flex-wrap items-center justify-between gap-2">
-							<FrameTitle className="flex items-center gap-2">
-								<Moon className="size-4 text-primary" />
+							<CardTitle className="flex items-center gap-2">
+								<Moon className="size-4 shrink-0 text-primary" />
 								{t("sleepTitle")}
-							</FrameTitle>
+							</CardTitle>
 							<div className="flex items-center gap-1.5">
 								{formattedSleep && (
 									<Badge variant="secondary" size="sm">
@@ -727,36 +720,44 @@ export function WellnessCategoryCards({
 								</Button>
 							</div>
 						</div>
-						<FrameDescription>{t("sleepDescription")}</FrameDescription>
-					</FrameHeader>
-					<FramePanel className="space-y-3">
+						<CardDescription>{t("sleepDescription")}</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-3">
 						<div className="grid grid-cols-2 gap-3">
 							<Field>
-								<FieldLabel htmlFor="wellness-sleep-time">
+								<FieldLabel
+									id="wellness-sleep-time-label"
+									htmlFor="wellness-sleep-time"
+								>
 									{t("sleepTimeLabel")}
 								</FieldLabel>
-								<Input
+								<TimePicker
 									id="wellness-sleep-time"
-									name="sleepTime"
-									type="time"
-									value={activeDraft.sleepTime ?? ""}
-									onChange={(e) =>
-										patchDraft({ sleepTime: e.target.value || null })
-									}
+									aria-labelledby="wellness-sleep-time-label"
+									className="w-full"
+									hourCycle={24}
+									granularity="minute"
+									placeholder={t("timePlaceholder")}
+									value={activeDraft.sleepTime}
+									onValueChange={(next) => patchDraft({ sleepTime: next })}
 								/>
 							</Field>
 							<Field>
-								<FieldLabel htmlFor="wellness-wake-time">
+								<FieldLabel
+									id="wellness-wake-time-label"
+									htmlFor="wellness-wake-time"
+								>
 									{t("wakeTimeLabel")}
 								</FieldLabel>
-								<Input
+								<TimePicker
 									id="wellness-wake-time"
-									name="wakeTime"
-									type="time"
-									value={activeDraft.wakeTime ?? ""}
-									onChange={(e) =>
-										patchDraft({ wakeTime: e.target.value || null })
-									}
+									aria-labelledby="wellness-wake-time-label"
+									className="w-full"
+									hourCycle={24}
+									granularity="minute"
+									placeholder={t("timePlaceholder")}
+									value={activeDraft.wakeTime}
+									onValueChange={(next) => patchDraft({ wakeTime: next })}
 								/>
 							</Field>
 						</div>
@@ -766,20 +767,20 @@ export function WellnessCategoryCards({
 							value={activeDraft.sleepQuality}
 							onChange={(next) => patchDraft({ sleepQuality: next })}
 						/>
-					</FramePanel>
-				</Frame>
+					</CardContent>
+				</Card>
 			)}
 
 			{showReadiness && (
-				<Frame spacing="sm">
-					<FrameHeader>
-						<FrameTitle className="flex items-center gap-2">
-							<BatteryCharging className="size-4 text-primary" />
+				<Card size="sm">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<BatteryCharging className="size-4 shrink-0 text-primary" />
 							{t("readinessTitle")}
-						</FrameTitle>
-						<FrameDescription>{t("readinessDescription")}</FrameDescription>
-					</FrameHeader>
-					<FramePanel className="space-y-4">
+						</CardTitle>
+						<CardDescription>{t("readinessDescription")}</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
 						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 							<div>
 								<SeverityScaleRow
@@ -875,8 +876,8 @@ export function WellnessCategoryCards({
 								placeholder={t("notesPlaceholder")}
 							/>
 						</Field>
-					</FramePanel>
-				</Frame>
+					</CardContent>
+				</Card>
 			)}
 		</div>
 	);

@@ -16,13 +16,8 @@ import {
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatSleepDuration } from "@/lib/wellness/cycle-and-wellness";
 import type {
 	CalendarDayLogView,
@@ -363,8 +358,8 @@ export function MonthlyCalendarPanel({
 	const topPain = monthlyInsights.topPainTags[0] ?? null;
 
 	return (
-		<Frame spacing="sm">
-			<FrameHeader>
+		<Card size="sm">
+			<CardHeader>
 				<div className="flex items-center justify-between gap-2">
 					<Button
 						variant="ghost"
@@ -375,7 +370,7 @@ export function MonthlyCalendarPanel({
 					>
 						<ChevronLeft />
 					</Button>
-					<FrameTitle>{monthLabel}</FrameTitle>
+					<CardTitle>{monthLabel}</CardTitle>
 					<Button
 						variant="ghost"
 						size="icon-sm"
@@ -386,9 +381,9 @@ export function MonthlyCalendarPanel({
 						<ChevronRight />
 					</Button>
 				</div>
-			</FrameHeader>
+			</CardHeader>
 
-			<FramePanel className="space-y-3">
+			<CardContent className="space-y-3">
 				<div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
 					{WEEKDAY_HEADERS.map((item) => (
 						<span key={item.id}>{item.label}</span>
@@ -594,7 +589,7 @@ export function MonthlyCalendarPanel({
 						</div>
 					)}
 				</div>
-			</FramePanel>
-		</Frame>
+			</CardContent>
+		</Card>
 	);
 }

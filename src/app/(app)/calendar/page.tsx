@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { CalendarWellnessView } from "@/components/features/calendar/calendar-wellness-view";
-import { Frame, FramePanel } from "@/components/reui/frame";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireOnboarded } from "@/lib/auth/session";
 import { ensureTodayQuestsAndStats } from "@/server/services/gamification-service";
 import { getCalendarWellnessData } from "@/server/services/wellness-service";
@@ -52,9 +52,11 @@ export default async function CalendarPage({
 			</div>
 			<Suspense
 				fallback={
-					<Frame>
-						<FramePanel className="h-48" />
-					</Frame>
+					<Card size="sm">
+						<CardContent>
+							<div className="h-40 animate-pulse rounded-2xl bg-muted/40" />
+						</CardContent>
+					</Card>
 				}
 			>
 				<CalendarContent searchParams={searchParams} />

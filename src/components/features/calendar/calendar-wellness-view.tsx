@@ -16,8 +16,8 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/reui/badge";
-import { Frame, FrameHeader, FrameTitle } from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	InputGroup,
 	InputGroupAddon,
@@ -392,13 +392,13 @@ export function CalendarWellnessView({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="sticky top-0 z-20 -mx-4 bg-background/95 px-4 py-1 backdrop-blur-sm">
-				<Frame spacing="sm">
-					<FrameHeader>
+				<Card size="sm">
+					<CardHeader>
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<div className="min-w-0">
-								<FrameTitle>
+								<CardTitle>
 									{t("selectedDateLabel", { date: selectedDateKey })}
-								</FrameTitle>
+								</CardTitle>
 							</div>
 							<div className="flex items-center gap-1">
 								{saveStatus === "saving" && (
@@ -541,8 +541,8 @@ export function CalendarWellnessView({
 								);
 							})}
 						</div>
-					</FrameHeader>
-				</Frame>
+					</CardHeader>
+				</Card>
 			</div>
 
 			{showMonthGrid && (

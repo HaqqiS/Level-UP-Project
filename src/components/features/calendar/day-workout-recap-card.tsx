@@ -3,14 +3,14 @@ import { CheckCircle2, Clock, Dumbbell } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameDescription,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import type { CalendarWorkoutSummary } from "@/server/services/wellness-service";
 
 export function DayWorkoutRecapCard({
@@ -27,13 +27,13 @@ export function DayWorkoutRecapCard({
 			: null;
 
 	return (
-		<Frame spacing="sm">
-			<FrameHeader>
+		<Card size="sm">
+			<CardHeader>
 				<div className="flex flex-wrap items-center justify-between gap-2">
-					<FrameTitle className="flex items-center gap-2">
-						<Dumbbell className="size-4 text-primary" />
+					<CardTitle className="flex items-center gap-2">
+						<Dumbbell className="size-4 shrink-0 text-primary" />
 						{summary.focus || t("recapDefaultFocus")}
-					</FrameTitle>
+					</CardTitle>
 					<Badge
 						variant={summary.completed ? "success-light" : "warning-light"}
 						size="sm"
@@ -44,7 +44,7 @@ export function DayWorkoutRecapCard({
 							: t("recapInProgressBadge")}
 					</Badge>
 				</div>
-				<FrameDescription>
+				<CardDescription>
 					{t("recapStats", { sets: summary.setsCount })}
 					{durationMinutes !== null && (
 						<span className="ml-2 inline-flex items-center gap-1">
@@ -52,10 +52,10 @@ export function DayWorkoutRecapCard({
 							{t("recapDurationMin", { minutes: durationMinutes })}
 						</span>
 					)}
-				</FrameDescription>
-			</FrameHeader>
+				</CardDescription>
+			</CardHeader>
 			{isToday && (
-				<FramePanel className="pt-0">
+				<CardContent>
 					<Button
 						size="sm"
 						variant="outline"
@@ -65,8 +65,8 @@ export function DayWorkoutRecapCard({
 					>
 						{t("recapOpenLogger")}
 					</Button>
-				</FramePanel>
+				</CardContent>
 			)}
-		</Frame>
+		</Card>
 	);
 }

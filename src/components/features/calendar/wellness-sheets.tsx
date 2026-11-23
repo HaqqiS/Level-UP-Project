@@ -317,7 +317,7 @@ export function CycleHistorySheet({
 							cycles.map((cycle) => (
 								<div
 									key={cycle.id}
-									className="flex items-start justify-between gap-2 rounded-xl border p-3"
+									className="flex items-center justify-between gap-2 rounded-xl border p-3"
 								>
 									<div className="min-w-0 space-y-1">
 										<div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
