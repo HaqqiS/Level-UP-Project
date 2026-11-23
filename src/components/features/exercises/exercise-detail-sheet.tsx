@@ -7,6 +7,7 @@ import {
 	TriangleAlert,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { Frame, FramePanel } from "@/components/reui/frame";
@@ -127,6 +128,14 @@ export function ExerciseDetailSheet({
 	onSelectExercise: (exercise: ExerciseItem) => void;
 }) {
 	const t = useTranslations();
+	const headerRef = useRef<HTMLDivElement>(null);
+	const contentRef = useRef<HTMLDivElement>(null);
+	const exerciseId = exercise?.id ?? null;
+
+	useEffect(() => {
+		if (!exerciseId) return;
+		contentRef.current?.scrollTo({ top: 0 });
+	}, [exerciseId]);
 
 	if (!exercise) return null;
 
@@ -161,8 +170,17 @@ export function ExerciseDetailSheet({
 
 	return (
 		<Sheet open={Boolean(exercise)} onOpenChange={onOpenChange}>
-			<SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto">
-				<SheetHeader>
+			<SheetContent
+				ref={contentRef}
+				side="bottom"
+				initialFocus={headerRef}
+				className="max-h-[85dvh] overflow-y-auto"
+			>
+				<SheetHeader
+					ref={headerRef}
+					tabIndex={-1}
+					className="pr-12 outline-none"
+				>
 					<div className="flex flex-wrap items-center gap-2">
 						<Badge variant="secondary">
 							{t(`exercises.patterns.${exercise.pattern}`)}
@@ -400,9 +418,9 @@ export function ExerciseDetailSheet({
 										if (!norm) return null;
 										const variant =
 											entry.role === "PRIMARY"
-												? "primary-light"
+												? "default"
 												: entry.role === "SECONDARY"
-													? "secondary"
+													? "primary-light"
 													: "outline";
 										return (
 											<Badge
@@ -423,11 +441,7 @@ export function ExerciseDetailSheet({
 											const norm = normalizeMuscleGroupId(muscle);
 											if (!norm) return null;
 											return (
-												<Badge
-													key={`pm-${muscle}`}
-													variant="primary-light"
-													size="sm"
-												>
+												<Badge key={`pm-${muscle}`} variant="default" size="sm">
 													{t(
 														`heatmap.muscles.${norm}` as "heatmap.muscles.mid_chest",
 													)}
@@ -440,7 +454,7 @@ export function ExerciseDetailSheet({
 											return (
 												<Badge
 													key={`sm-${muscle}`}
-													variant="secondary"
+													variant="primary-light"
 													size="sm"
 												>
 													{t(

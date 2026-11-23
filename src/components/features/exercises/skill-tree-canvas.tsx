@@ -205,7 +205,7 @@ function CanvasNodeCard({
 								</span>
 							</span>
 						)}
-						{status === "mastered" && highestTier !== "NONE" ? (
+						{status === "mastered" && highestTier !== "NONE" && (
 							<span
 								className={cn(
 									"inline-flex h-4 items-center rounded-full border px-1.5 text-[9px] font-semibold leading-none",
@@ -214,13 +214,10 @@ function CanvasNodeCard({
 							>
 								{t(`skillTree.tiers.${highestTier}`)}
 							</span>
-						) : status === "ongoing" ? (
+						)}
+						{status === "ongoing" && (
 							<span className="text-[10px] font-medium text-primary tabular-nums">
 								{bestSetsInSession}/{targetSets}
-							</span>
-						) : (
-							<span className="text-[10px] text-muted-foreground tabular-nums">
-								{t("levelBadge", { level: node.exercise.difficulty })}
 							</span>
 						)}
 					</div>

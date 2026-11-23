@@ -31,7 +31,6 @@ import {
 	InputGroupButton,
 	InputGroupInput,
 } from "@/components/ui/input-group";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { MovementPattern } from "@/lib/exercises/eligibility";
@@ -207,40 +206,47 @@ export function SkillTreeView({
 					setFocusedExerciseId(null);
 				}}
 			>
-				<ScrollArea className="w-full whitespace-nowrap pb-2">
-					<TabsList className="inline-flex h-auto w-max items-center gap-1 rounded-2xl bg-muted/75 p-1">
-						{TREE_PATTERNS.map((pattern) => {
-							const counts = patternCounts.get(pattern) ?? {
-								mastered: 0,
-								total: 0,
-							};
-							const PatternIcon = PATTERN_ICON[pattern];
-							return (
-								<TabsTrigger
-									key={pattern}
-									value={pattern}
-									aria-label={t("skillTree.patternTab", {
-										pattern: t(`patterns.${pattern}`),
-									})}
-									className="flex-none shrink-0 gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all data-active:bg-background data-active:text-foreground data-active:shadow-sm"
-								>
-									<PatternIcon className="size-3.5" aria-hidden="true" />
-									<span>{t(`patterns.${pattern}`)}</span>
-									<Badge
-										variant={
-											activePattern === pattern ? "primary-light" : "secondary"
-										}
-										size="xs"
-										className="tabular-nums"
+				<div className="relative">
+					<div className="w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						<TabsList className="inline-flex h-auto w-max items-center gap-1 rounded-2xl bg-muted/75 p-1 pr-6">
+							{TREE_PATTERNS.map((pattern) => {
+								const counts = patternCounts.get(pattern) ?? {
+									mastered: 0,
+									total: 0,
+								};
+								const PatternIcon = PATTERN_ICON[pattern];
+								return (
+									<TabsTrigger
+										key={pattern}
+										value={pattern}
+										aria-label={t("skillTree.patternTab", {
+											pattern: t(`patterns.${pattern}`),
+										})}
+										className="flex-none shrink-0 gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all data-active:bg-background data-active:text-foreground data-active:shadow-sm"
 									>
-										{t("skillTree.patternProgress", counts)}
-									</Badge>
-								</TabsTrigger>
-							);
-						})}
-					</TabsList>
-					<ScrollBar orientation="horizontal" />
-				</ScrollArea>
+										<PatternIcon className="size-3.5" aria-hidden="true" />
+										<span>{t(`patterns.${pattern}`)}</span>
+										<Badge
+											variant={
+												activePattern === pattern
+													? "primary-light"
+													: "secondary"
+											}
+											size="xs"
+											className="tabular-nums"
+										>
+											{t("skillTree.patternProgress", counts)}
+										</Badge>
+									</TabsTrigger>
+								);
+							})}
+						</TabsList>
+					</div>
+					<div
+						aria-hidden="true"
+						className="pointer-events-none absolute inset-y-0 right-0 w-6 rounded-r-2xl bg-gradient-to-l from-background/90 to-transparent"
+					/>
+				</div>
 
 				<div className="mt-3 flex flex-col gap-2">
 					<div className="flex items-center gap-2">
@@ -249,6 +255,9 @@ export function SkillTreeView({
 								<Search />
 							</InputGroupAddon>
 							<InputGroupInput
+								id="skill-tree-search"
+								name="skillTreeSearch"
+								aria-label={t("skillTree.searchNodePlaceholder")}
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								placeholder={t("skillTree.searchNodePlaceholder")}

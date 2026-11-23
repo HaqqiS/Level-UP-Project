@@ -103,6 +103,9 @@ export function ExerciseBrowser({
 								<Search />
 							</InputGroupAddon>
 							<InputGroupInput
+								id="exercise-search"
+								name="exerciseSearch"
+								aria-label={t("searchPlaceholder")}
 								value={query}
 								onChange={(e) => setQuery(e.target.value)}
 								placeholder={t("searchPlaceholder")}
@@ -129,13 +132,19 @@ export function ExerciseBrowser({
 						value={tab}
 						onValueChange={(value) => setTab(value as PatternTab)}
 					>
-						<TabsList className="w-full justify-start overflow-x-auto">
-							{PATTERN_TABS.map((p) => (
-								<TabsTrigger key={p} value={p}>
-									{t(`patterns.${p}`)}
-								</TabsTrigger>
-							))}
-						</TabsList>
+						<div className="relative">
+							<TabsList className="h-auto min-h-9 w-full justify-start overflow-x-auto pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+								{PATTERN_TABS.map((p) => (
+									<TabsTrigger key={p} value={p} className="flex-none shrink-0">
+										{t(`patterns.${p}`)}
+									</TabsTrigger>
+								))}
+							</TabsList>
+							<div
+								aria-hidden="true"
+								className="pointer-events-none absolute inset-y-0 right-0 w-6 rounded-r-full bg-gradient-to-l from-muted to-transparent"
+							/>
+						</div>
 
 						<TabsContent value={tab} className="mt-3 space-y-4">
 							{filtered.length > 0 ? (
