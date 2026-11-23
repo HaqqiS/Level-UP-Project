@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { ExerciseBrowser } from "@/components/features/exercises/exercise-browser";
 import { resolveBodyMapGender } from "@/components/features/muscles/body-map-paths";
-import { Frame, FramePanel } from "@/components/reui/frame";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireOnboarded } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { evaluateSkillTree } from "@/lib/gamification/skill-tree";
@@ -127,9 +127,11 @@ export default async function ExercisesPage() {
 			</div>
 			<Suspense
 				fallback={
-					<Frame>
-						<FramePanel className="h-48" />
-					</Frame>
+					<Card size="sm">
+						<CardContent>
+							<div className="h-40 animate-pulse rounded-2xl bg-muted/40" />
+						</CardContent>
+					</Card>
 				}
 			>
 				<ExercisesContent />

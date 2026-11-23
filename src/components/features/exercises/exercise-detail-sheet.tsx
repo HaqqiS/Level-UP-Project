@@ -10,7 +10,6 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
-import { Frame, FramePanel } from "@/components/reui/frame";
 import {
 	Timeline,
 	TimelineContent,
@@ -254,7 +253,7 @@ export function ExerciseDetailSheet({
 							</div>
 
 							{hasLegacyTiers ? (
-								<Frame spacing="xs">
+								<div className="space-y-2">
 									{mastery.tiers.map((tier, idx) => {
 										const prevAchieved =
 											idx === 0
@@ -274,7 +273,10 @@ export function ExerciseDetailSheet({
 										const barValue = tier.achieved ? 100 : tier.progressPercent;
 
 										return (
-											<FramePanel key={tier.tier} className="space-y-2">
+											<div
+												key={tier.tier}
+												className="space-y-2 rounded-2xl bg-muted/50 p-3"
+											>
 												<div className="flex flex-wrap items-center justify-between gap-2">
 													<Badge
 														variant="outline"
@@ -364,10 +366,10 @@ export function ExerciseDetailSheet({
 														{tier.formStandard}
 													</p>
 												)}
-											</FramePanel>
+											</div>
 										);
 									})}
-								</Frame>
+								</div>
 							) : (
 								<Progress value={mastery.progressPercent}>
 									<ProgressLabel>
@@ -508,7 +510,7 @@ export function ExerciseDetailSheet({
 									<p className="text-xs font-medium text-muted-foreground">
 										{t("exercises.skillTree.prerequisitesTitle")}
 									</p>
-									<Frame spacing="xs">
+									<div className="space-y-2">
 										{incomingRequirements.map((req) => {
 											const target = exercisesById.get(req.exerciseId);
 											return (
@@ -519,59 +521,55 @@ export function ExerciseDetailSheet({
 													onClick={() => {
 														if (target) onSelectExercise(target);
 													}}
-													className="block w-full rounded-(--frame-panel-radius) text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-70"
+													className="flex w-full items-center justify-between gap-2 rounded-2xl bg-muted/50 p-3 text-left transition-colors hover:bg-muted/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-70"
 												>
-													<FramePanel className="flex items-center justify-between gap-2 transition-colors hover:bg-muted/30">
-														<div className="min-w-0 space-y-1">
-															<p className="truncate text-sm font-medium">
-																{req.exerciseName}
-															</p>
-															<div className="flex flex-wrap items-center gap-1">
-																<Badge variant="outline" size="xs">
+													<div className="min-w-0 space-y-1">
+														<p className="truncate text-sm font-medium">
+															{req.exerciseName}
+														</p>
+														<div className="flex flex-wrap items-center gap-1">
+															<Badge variant="outline" size="xs">
+																{t(`exercises.skillTree.edgeKinds.${req.kind}`)}
+															</Badge>
+															{req.isCrossPattern && (
+																<Badge variant="info-light" size="xs">
 																	{t(
-																		`exercises.skillTree.edgeKinds.${req.kind}`,
+																		`exercises.patterns.${req.exercisePattern}`,
 																	)}
 																</Badge>
-																{req.isCrossPattern && (
-																	<Badge variant="info-light" size="xs">
-																		{t(
-																			`exercises.patterns.${req.exercisePattern}`,
-																		)}
-																	</Badge>
-																)}
-																<Badge variant="secondary" size="xs">
-																	{t("exercises.skillTree.requiredTierBadge", {
-																		tier: t(
-																			`exercises.skillTree.tiers.${req.requiredTier}`,
-																		),
-																	})}
+															)}
+															<Badge variant="secondary" size="xs">
+																{t("exercises.skillTree.requiredTierBadge", {
+																	tier: t(
+																		`exercises.skillTree.tiers.${req.requiredTier}`,
+																	),
+																})}
+															</Badge>
+														</div>
+													</div>
+													<div className="flex shrink-0 items-center gap-1.5">
+														{mastery &&
+															(req.isMet ? (
+																<Badge variant="success-light" size="xs">
+																	<Check />
+																	{req.currentTier !== "NONE"
+																		? t(
+																				`exercises.skillTree.tiers.${req.currentTier}`,
+																			)
+																		: t("exercises.skillTree.tierAchieved")}
 																</Badge>
-															</div>
-														</div>
-														<div className="flex shrink-0 items-center gap-1.5">
-															{mastery &&
-																(req.isMet ? (
-																	<Badge variant="success-light" size="xs">
-																		<Check />
-																		{req.currentTier !== "NONE"
-																			? t(
-																					`exercises.skillTree.tiers.${req.currentTier}`,
-																				)
-																			: t("exercises.skillTree.tierAchieved")}
-																	</Badge>
-																) : (
-																	<Badge variant="secondary" size="xs">
-																		<Lock />
-																		{t("exercises.skillTree.tierLocked")}
-																	</Badge>
-																))}
-															<ChevronRight className="size-4 text-muted-foreground" />
-														</div>
-													</FramePanel>
+															) : (
+																<Badge variant="secondary" size="xs">
+																	<Lock />
+																	{t("exercises.skillTree.tierLocked")}
+																</Badge>
+															))}
+														<ChevronRight className="size-4 text-muted-foreground" />
+													</div>
 												</button>
 											);
 										})}
-									</Frame>
+									</div>
 								</div>
 							)}
 
@@ -580,7 +578,7 @@ export function ExerciseDetailSheet({
 									<p className="text-xs font-medium text-muted-foreground">
 										{t("exercises.skillTree.unlocksTitle")}
 									</p>
-									<Frame spacing="xs">
+									<div className="space-y-2">
 										{outgoingUnlocks.map((unlock) => {
 											const target = exercisesById.get(unlock.exerciseId);
 											const targetMastery =
@@ -593,78 +591,74 @@ export function ExerciseDetailSheet({
 													onClick={() => {
 														if (target) onSelectExercise(target);
 													}}
-													className="block w-full rounded-(--frame-panel-radius) text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-70"
+													className="flex w-full items-center justify-between gap-2 rounded-2xl bg-muted/50 p-3 text-left transition-colors hover:bg-muted/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-70"
 												>
-													<FramePanel className="flex items-center justify-between gap-2 transition-colors hover:bg-muted/30">
-														<div className="min-w-0 space-y-1">
-															<p className="truncate text-sm font-medium">
-																{unlock.exerciseName}
-															</p>
-															<div className="flex flex-wrap items-center gap-1">
-																{unlock.branchLabel ? (
-																	<Badge variant="outline" size="xs">
-																		{unlock.branchLabel}
-																	</Badge>
-																) : (
-																	<Badge variant="outline" size="xs">
-																		{t(
-																			`exercises.skillTree.edgeKinds.${unlock.kind}`,
-																		)}
-																	</Badge>
-																)}
-																{unlock.isCrossPattern && (
-																	<Badge variant="info-light" size="xs">
-																		{t(
-																			`exercises.patterns.${unlock.exercisePattern}`,
-																		)}
-																	</Badge>
-																)}
-																<Badge variant="secondary" size="xs">
-																	{t("exercises.skillTree.requiredTierBadge", {
-																		tier: t(
-																			`exercises.skillTree.tiers.${unlock.requiredTier}`,
-																		),
-																	})}
+													<div className="min-w-0 space-y-1">
+														<p className="truncate text-sm font-medium">
+															{unlock.exerciseName}
+														</p>
+														<div className="flex flex-wrap items-center gap-1">
+															{unlock.branchLabel ? (
+																<Badge variant="outline" size="xs">
+																	{unlock.branchLabel}
 																</Badge>
-															</div>
+															) : (
+																<Badge variant="outline" size="xs">
+																	{t(
+																		`exercises.skillTree.edgeKinds.${unlock.kind}`,
+																	)}
+																</Badge>
+															)}
+															{unlock.isCrossPattern && (
+																<Badge variant="info-light" size="xs">
+																	{t(
+																		`exercises.patterns.${unlock.exercisePattern}`,
+																	)}
+																</Badge>
+															)}
+															<Badge variant="secondary" size="xs">
+																{t("exercises.skillTree.requiredTierBadge", {
+																	tier: t(
+																		`exercises.skillTree.tiers.${unlock.requiredTier}`,
+																	),
+																})}
+															</Badge>
 														</div>
-														<div className="flex shrink-0 items-center gap-1.5">
-															{targetMastery &&
-																(targetMastery.highestTier !== "NONE" ? (
-																	<Badge
-																		variant="outline"
-																		size="xs"
-																		className={
-																			TIER_BADGE_CLASS[
-																				targetMastery.highestTier
-																			]
-																		}
-																	>
-																		{t(
-																			`exercises.skillTree.tiers.${targetMastery.highestTier}`,
-																		)}
-																	</Badge>
-																) : (
-																	<Badge
-																		variant={
-																			targetMastery.status === "ongoing"
-																				? "primary-light"
-																				: "secondary"
-																		}
-																		size="xs"
-																	>
-																		{t(
-																			`exercises.skillTree.status.${targetMastery.status}`,
-																		)}
-																	</Badge>
-																))}
-															<ChevronRight className="size-4 text-muted-foreground" />
-														</div>
-													</FramePanel>
+													</div>
+													<div className="flex shrink-0 items-center gap-1.5">
+														{targetMastery &&
+															(targetMastery.highestTier !== "NONE" ? (
+																<Badge
+																	variant="outline"
+																	size="xs"
+																	className={
+																		TIER_BADGE_CLASS[targetMastery.highestTier]
+																	}
+																>
+																	{t(
+																		`exercises.skillTree.tiers.${targetMastery.highestTier}`,
+																	)}
+																</Badge>
+															) : (
+																<Badge
+																	variant={
+																		targetMastery.status === "ongoing"
+																			? "primary-light"
+																			: "secondary"
+																	}
+																	size="xs"
+																>
+																	{t(
+																		`exercises.skillTree.status.${targetMastery.status}`,
+																	)}
+																</Badge>
+															))}
+														<ChevronRight className="size-4 text-muted-foreground" />
+													</div>
 												</button>
 											);
 										})}
-									</Frame>
+									</div>
 								</div>
 							)}
 						</section>

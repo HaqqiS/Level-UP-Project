@@ -18,7 +18,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/reui/badge";
-import { Frame, FramePanel } from "@/components/reui/frame";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Empty,
 	EmptyDescription,
@@ -299,8 +299,8 @@ export function SkillTreeView({
 					</div>
 
 					{searchQuery.trim().length > 0 && (
-						<Frame spacing="xs">
-							<FramePanel className="space-y-1.5">
+						<Card size="sm">
+							<CardContent className="space-y-1.5">
 								{searchMatches.length > 0 ? (
 									<div className="flex flex-col gap-1">
 										{searchMatches.map((match) => {
@@ -337,8 +337,8 @@ export function SkillTreeView({
 										{t("skillTree.noSearchResults")}
 									</p>
 								)}
-							</FramePanel>
-						</Frame>
+							</CardContent>
+						</Card>
 					)}
 
 					<ToggleGroup
@@ -379,18 +379,20 @@ export function SkillTreeView({
 
 				<TabsContent value={activePattern} className="mt-3">
 					{layout.nodes.length === 0 ? (
-						<Frame>
-							<Empty>
-								<EmptyHeader>
-									<EmptyMedia variant="icon">
-										<GitBranch />
-									</EmptyMedia>
-									<EmptyDescription>
-										{t("skillTree.emptyPattern")}
-									</EmptyDescription>
-								</EmptyHeader>
-							</Empty>
-						</Frame>
+						<Card size="sm">
+							<CardContent>
+								<Empty>
+									<EmptyHeader>
+										<EmptyMedia variant="icon">
+											<GitBranch />
+										</EmptyMedia>
+										<EmptyDescription>
+											{t("skillTree.emptyPattern")}
+										</EmptyDescription>
+									</EmptyHeader>
+								</Empty>
+							</CardContent>
+						</Card>
 					) : viewMode === "canvas" ? (
 						<SkillTreeCanvas
 							layout={layout}
@@ -415,8 +417,8 @@ export function SkillTreeView({
 				</TabsContent>
 			</Tabs>
 
-			<Frame spacing="sm">
-				<FramePanel className="space-y-2.5 text-xs">
+			<Card size="sm">
+				<CardContent className="space-y-2.5 text-xs">
 					<div className="flex flex-wrap items-center gap-1.5">
 						<Badge variant="primary-light" size="sm">
 							<CircleDot />
@@ -461,8 +463,8 @@ export function SkillTreeView({
 							</span>
 						))}
 					</div>
-				</FramePanel>
-			</Frame>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

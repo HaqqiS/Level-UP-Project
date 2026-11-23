@@ -3,8 +3,8 @@ import { GitBranch, List, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import type { BodyMapGender } from "@/components/features/muscles/body-map-paths";
-import { Frame } from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Empty,
 	EmptyContent,
@@ -132,55 +132,57 @@ export function ExerciseBrowser({
 						value={tab}
 						onValueChange={(value) => setTab(value as PatternTab)}
 					>
-						<div className="relative">
-							<TabsList className="h-auto min-h-9 w-full justify-start overflow-x-auto pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-								{PATTERN_TABS.map((p) => (
-									<TabsTrigger key={p} value={p} className="flex-none shrink-0">
-										{t(`patterns.${p}`)}
-									</TabsTrigger>
-								))}
-							</TabsList>
-							<div
-								aria-hidden="true"
-								className="pointer-events-none absolute inset-y-0 right-0 w-6 rounded-r-full bg-gradient-to-l from-muted to-transparent"
-							/>
-						</div>
+						<TabsList className="w-full">
+							{PATTERN_TABS.map((p) => (
+								<TabsTrigger
+									key={p}
+									value={p}
+									className="flex-auto px-1.5 text-xs sm:px-2.5 sm:text-sm"
+								>
+									{t(`patterns.${p}`)}
+								</TabsTrigger>
+							))}
+						</TabsList>
 
 						<TabsContent value={tab} className="mt-3 space-y-4">
 							{filtered.length > 0 ? (
-								<Frame spacing="sm">
-									{filtered.map((exercise) => (
-										<ExerciseCard
-											key={exercise.id}
-											exercise={exercise}
-											onSelect={setSelected}
-										/>
-									))}
-								</Frame>
+								<Card size="sm">
+									<CardContent className="flex flex-col gap-2">
+										{filtered.map((exercise) => (
+											<ExerciseCard
+												key={exercise.id}
+												exercise={exercise}
+												onSelect={setSelected}
+											/>
+										))}
+									</CardContent>
+								</Card>
 							) : (
-								<Frame>
-									<Empty>
-										<EmptyHeader>
-											<EmptyMedia variant="icon">
-												<Search />
-											</EmptyMedia>
-											<EmptyTitle>{t("emptyTitle")}</EmptyTitle>
-											<EmptyDescription>
-												{t("emptyDescription")}
-											</EmptyDescription>
-										</EmptyHeader>
-										{scope === "eligible" && (
-											<EmptyContent>
-												<Button
-													variant="outline"
-													onClick={() => setScope("all")}
-												>
-													{t("filterAll")}
-												</Button>
-											</EmptyContent>
-										)}
-									</Empty>
-								</Frame>
+								<Card size="sm">
+									<CardContent>
+										<Empty>
+											<EmptyHeader>
+												<EmptyMedia variant="icon">
+													<Search />
+												</EmptyMedia>
+												<EmptyTitle>{t("emptyTitle")}</EmptyTitle>
+												<EmptyDescription>
+													{t("emptyDescription")}
+												</EmptyDescription>
+											</EmptyHeader>
+											{scope === "eligible" && (
+												<EmptyContent>
+													<Button
+														variant="outline"
+														onClick={() => setScope("all")}
+													>
+														{t("filterAll")}
+													</Button>
+												</EmptyContent>
+											)}
+										</Empty>
+									</CardContent>
+								</Card>
 							)}
 
 							<DiscoverExercisesButton

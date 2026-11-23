@@ -10,11 +10,6 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/reui/badge";
-import {
-	FrameDescription,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
 import type { MovementPattern } from "@/lib/exercises/eligibility";
 import type { ExerciseItem } from "./types";
@@ -42,41 +37,39 @@ export function ExerciseCard({
 		<button
 			type="button"
 			onClick={() => onSelect(exercise)}
-			className="block w-full rounded-(--frame-panel-radius) text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+			className="flex w-full items-center gap-3 rounded-2xl bg-muted/50 p-3 text-left transition-colors hover:bg-muted/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 		>
-			<FramePanel className="flex items-start gap-3 transition-colors hover:bg-muted/30">
-				<IconTile variant="soft" size="sm">
-					<Icon />
-				</IconTile>
-				<div className="min-w-0 flex-1 space-y-1.5">
-					<div className="flex flex-wrap items-center gap-1.5">
-						<FrameTitle className="truncate">{exercise.name}</FrameTitle>
-						{exercise.status === "UNVERIFIED" && (
-							<Badge variant="warning-light" size="sm">
-								{t("exercises.unverifiedBadge")}
-							</Badge>
-						)}
-					</div>
-					<FrameDescription className="line-clamp-1">
-						{exercise.cues[0] ?? ""}
-					</FrameDescription>
-					<div className="flex flex-wrap items-center gap-1.5">
-						<Badge variant="secondary" size="sm">
-							{t("exercises.levelBadge", { level: exercise.difficulty })}
+			<IconTile variant="soft" size="sm">
+				<Icon />
+			</IconTile>
+			<div className="min-w-0 flex-1 space-y-1.5">
+				<div className="flex flex-wrap items-center gap-1.5">
+					<p className="truncate text-sm font-semibold">{exercise.name}</p>
+					{exercise.status === "UNVERIFIED" && (
+						<Badge variant="warning-light" size="sm">
+							{t("exercises.unverifiedBadge")}
 						</Badge>
-						<Badge variant="outline" size="sm">
-							{exercise.measure === "SECONDS"
-								? t("exercises.measureSeconds")
-								: t("exercises.measureReps")}
-						</Badge>
-						{exercise.equipment.map((eq) => (
-							<Badge key={eq} variant="outline" size="sm">
-								{t(`onboarding.equipment.${eq}` as "onboarding.equipment.none")}
-							</Badge>
-						))}
-					</div>
+					)}
 				</div>
-			</FramePanel>
+				<p className="line-clamp-1 text-xs text-muted-foreground">
+					{exercise.cues[0] ?? ""}
+				</p>
+				<div className="flex flex-wrap items-center gap-1.5">
+					<Badge variant="secondary" size="sm">
+						{t("exercises.levelBadge", { level: exercise.difficulty })}
+					</Badge>
+					<Badge variant="outline" size="sm">
+						{exercise.measure === "SECONDS"
+							? t("exercises.measureSeconds")
+							: t("exercises.measureReps")}
+					</Badge>
+					{exercise.equipment.map((eq) => (
+						<Badge key={eq} variant="outline" size="sm">
+							{t(`onboarding.equipment.${eq}` as "onboarding.equipment.none")}
+						</Badge>
+					))}
+				</div>
+			</div>
 		</button>
 	);
 }
