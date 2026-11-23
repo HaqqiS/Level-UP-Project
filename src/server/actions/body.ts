@@ -5,7 +5,9 @@ import type { LogWeightInput } from "@/lib/body/metrics";
 import {
 	type DeleteWeightResult,
 	deleteWeightEntryForUser,
+	type LogMeasurementInput,
 	type LogWeightResult,
+	logMeasurementForUser,
 	logWeightForUser,
 } from "@/server/services/body-metric-service";
 
@@ -15,8 +17,22 @@ export async function logWeightAction(
 	const { session } = await requireOnboarded();
 	const result = await logWeightForUser({ userId: session.user.id, input });
 	if (result.ok) {
-		revalidatePath("/body");
 		revalidatePath("/today");
+		revalidatePath("/profile");
+	}
+	return result;
+}
+
+export async function logMeasurementAction(
+	input: LogMeasurementInput,
+): Promise<LogWeightResult> {
+	const { session } = await requireOnboarded();
+	const result = await logMeasurementForUser({
+		userId: session.user.id,
+		input,
+	});
+	if (result.ok) {
+		revalidatePath("/profile");
 	}
 	return result;
 }
@@ -30,7 +46,7 @@ export async function deleteWeightEntryAction(
 		metricId,
 	});
 	if (result.ok) {
-		revalidatePath("/body");
+		revalidatePath("/profile");
 	}
 	return result;
 }
