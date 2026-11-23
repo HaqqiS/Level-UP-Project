@@ -275,4 +275,25 @@ describe("enforceDailyAdjustmentBounds", () => {
 		expect(highVol).toBeLessThanOrEqual(Math.floor(baselineVolume * 1.15));
 		expect(highVol).toBeGreaterThanOrEqual(Math.ceil(baselineVolume * 0.6));
 	});
+
+	it("excludes knee-contraindicated exercises when wellness pain areas are merged", () => {
+		const adjusted = enforceDailyAdjustmentBounds({
+			plannedExercises: planned,
+			candidate: {
+				focus: "Leg Swap",
+				notes: "Skipping knee load.",
+				exercises: [
+					{ exerciseId: "legs-1", sets: 3, targetReps: 10, restSeconds: 60 },
+					{ exerciseId: "core-1", sets: 3, targetReps: 10, restSeconds: 60 },
+				],
+			},
+			eligibleExercises: exercises,
+			painAreas: ["knee"],
+			baselineVolume,
+		});
+
+		expect(adjusted.exercises.some((e) => e.exerciseId === "legs-1")).toBe(
+			false,
+		);
+	});
 });

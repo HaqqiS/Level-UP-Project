@@ -15,6 +15,12 @@ import {
 import { db } from "@/lib/db";
 import "@/lib/env";
 import { filterEligibleExercises } from "@/lib/exercises/eligibility";
+import {
+	buildWellnessAiContext,
+	computeDetailedCyclePhaseForDate,
+	mapWellnessPainTagsToInjuryAreas,
+	parsePainDetailsRecord,
+} from "@/lib/wellness/cycle-and-wellness";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 import { getLocalDateKey } from "@/server/services/weekly-plan-service";
 
@@ -95,10 +101,71 @@ export async function submitDailyCheckinAndAdjust(params: {
 		},
 	);
 
-	const painSet = new Set<string>(data.painAreas);
+	const [todayWellnessRow, recentCycles] = await Promise.all([
+		db.dailyWellnessLog.findUnique({
+			where: { userId_date: { userId, date: todayKey } },
+			select: {
+				periodFlow: true,
+				painTags: true,
+				painSeverity: true,
+				painDetails: true,
+				crampSeverity: true,
+				medications: true,
+				supplements: true,
+				sleepDurationMinutes: true,
+				sleepQuality: true,
+				energyLevel: true,
+				stressLevel: true,
+				moodTags: true,
+				hydrationMl: true,
+			},
+		}),
+		profile.tracksPeriod
+			? db.menstrualCycle.findMany({
+					where: { userId },
+					orderBy: { startDate: "desc" },
+					take: 6,
+					select: {
+						startDate: true,
+						endDate: true,
+						cycleLengthDays: true,
+						periodLengthDays: true,
+						isConfirmed: true,
+					},
+				})
+			: Promise.resolve([]),
+	]);
+
+	const todayWellness = todayWellnessRow
+		? {
+				...todayWellnessRow,
+				painDetails: parsePainDetailsRecord(todayWellnessRow.painDetails),
+			}
+		: null;
+
+	const painSet = new Set<string>([
+		...data.painAreas,
+		...mapWellnessPainTagsToInjuryAreas(todayWellness?.painTags ?? []),
+	]);
 	const painSafeEligible = eligibleExercises.filter(
 		(ex) => !ex.contraindications.some((area) => painSet.has(area)),
 	);
+
+	const wellnessContext = buildWellnessAiContext({
+		cyclePhase: computeDetailedCyclePhaseForDate({
+			tracksPeriod: profile.tracksPeriod,
+			lastPeriodStartDate: profile.lastPeriodStartDate,
+			averageCycleDays: profile.averageCycleDays,
+			averagePeriodDays: profile.averagePeriodDays,
+			lutealPhaseDays: profile.lutealPhaseDays,
+			cycleRegularity: profile.cycleRegularity,
+			cycles: recentCycles,
+			targetDateKey: todayKey,
+			hasLoggedPeriodFlowOnDate: Boolean(todayWellness?.periodFlow),
+		}),
+		cycleRegularity: profile.cycleRegularity,
+		log: todayWellness,
+	});
 
 	const plannedNormalized: NormalizedPlannedExercise[] = session.exercises.map(
 		(ex) => ({
@@ -119,9 +186,12 @@ export async function submitDailyCheckinAndAdjust(params: {
 		"You are adjusting today's calisthenics workout based on the user's pre-workout check-in.",
 		`Planned focus: ${session.focus}`,
 		`Check-in: energy=${data.energy}/5, soreness=${data.soreness}/5, availableMinutes=${data.minutesAvailable}`,
-		data.painAreas.length > 0
-			? `Current pain areas (MUST avoid contraindicated exercises): ${data.painAreas.join(", ")}`
+		painSet.size > 0
+			? `Current pain/avoid areas (MUST avoid contraindicated exercises): ${[...painSet].join(", ")}`
 			: "No pain reported today.",
+		wellnessContext
+			? `Today's cycle & wellness log (no medical claims):\n${wellnessContext}`
+			: "",
 		`Baseline volume: ${baselineVolume} (keep adjusted volume strictly within -40% to +15%).`,
 		"",
 		"Current planned exercises:",
@@ -163,7 +233,7 @@ export async function submitDailyCheckinAndAdjust(params: {
 			plannedExercises: plannedNormalized,
 			candidate: response.object,
 			eligibleExercises,
-			painAreas: data.painAreas,
+			painAreas: [...painSet],
 			baselineVolume,
 		});
 

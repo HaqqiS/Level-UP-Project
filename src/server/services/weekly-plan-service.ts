@@ -11,6 +11,12 @@ import {
 } from "@/lib/ai/plan-safety";
 import { WeeklyPlanAiSchema } from "@/lib/ai/plan-schema";
 import { filterEligibleExercises } from "@/lib/exercises/eligibility";
+import {
+	buildWeeklyWellnessTrendContext,
+	buildWellnessAiContext,
+	computeDetailedCyclePhaseForDate,
+	parsePainDetailsRecord,
+} from "@/lib/wellness/cycle-and-wellness";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 
 const AI_MODEL_ID = "gemini-2.5-flash";
@@ -68,6 +74,19 @@ export async function getCurrentWeeklyPlan(userId: string, timezone?: string) {
 									measure: true,
 									cues: true,
 									contraindications: true,
+									primaryMuscles: true,
+									secondaryMuscles: true,
+									muscles: {
+										select: {
+											muscleGroup: true,
+											role: true,
+											activationWeight: true,
+										},
+										orderBy: { activationWeight: "desc" },
+									},
+									masteryTargetSets: true,
+									masteryTargetReps: true,
+									masteryTargetSeconds: true,
 									progressionNextId: true,
 									status: true,
 									source: true,
@@ -157,6 +176,92 @@ export async function generateWeeklyPlanForUser(
 		previousWeekVolume = computeWeeklyVolume(previousPlan.sessions);
 	}
 
+	const [recentWellnessRows, recentCycles] = await Promise.all([
+		db.dailyWellnessLog.findMany({
+			where: { userId },
+			orderBy: { date: "desc" },
+			take: 7,
+			select: {
+				date: true,
+				periodFlow: true,
+				painTags: true,
+				painSeverity: true,
+				painDetails: true,
+				crampSeverity: true,
+				medications: true,
+				supplements: true,
+				sleepDurationMinutes: true,
+				sleepQuality: true,
+				energyLevel: true,
+				stressLevel: true,
+				moodTags: true,
+				hydrationMl: true,
+			},
+		}),
+		profile.tracksPeriod
+			? db.menstrualCycle.findMany({
+					where: { userId },
+					orderBy: { startDate: "desc" },
+					take: 6,
+					select: {
+						startDate: true,
+						endDate: true,
+						cycleLengthDays: true,
+						periodLengthDays: true,
+						isConfirmed: true,
+					},
+				})
+			: Promise.resolve([]),
+	]);
+
+	const recentWellness = recentWellnessRows.map((row) => ({
+		...row,
+		painDetails: parsePainDetailsRecord(row.painDetails),
+	}));
+
+	const cyclePhaseLines: string[] = [];
+	if (
+		profile.tracksPeriod &&
+		(profile.lastPeriodStartDate || recentCycles.length > 0)
+	) {
+		for (const dayOfWeek of profile.trainingDays) {
+			const dayDate = getDateForDayOfWeek(weekStart, dayOfWeek)
+				.toISOString()
+				.slice(0, 10);
+			const info = computeDetailedCyclePhaseForDate({
+				tracksPeriod: profile.tracksPeriod,
+				lastPeriodStartDate: profile.lastPeriodStartDate,
+				averageCycleDays: profile.averageCycleDays,
+				averagePeriodDays: profile.averagePeriodDays,
+				lutealPhaseDays: profile.lutealPhaseDays,
+				cycleRegularity: profile.cycleRegularity,
+				cycles: recentCycles,
+				targetDateKey: dayDate,
+			});
+			if (info) {
+				cyclePhaseLines.push(
+					`dayOfWeek=${dayOfWeek} (${dayDate}): ${info.phase} (cycle day ${info.dayInCycle})`,
+				);
+			}
+		}
+	}
+
+	const latestWellnessContext = buildWellnessAiContext({
+		cyclePhase: computeDetailedCyclePhaseForDate({
+			tracksPeriod: profile.tracksPeriod,
+			lastPeriodStartDate: profile.lastPeriodStartDate,
+			averageCycleDays: profile.averageCycleDays,
+			averagePeriodDays: profile.averagePeriodDays,
+			lutealPhaseDays: profile.lutealPhaseDays,
+			cycleRegularity: profile.cycleRegularity,
+			cycles: recentCycles,
+			targetDateKey: dateKey,
+		}),
+		cycleRegularity: profile.cycleRegularity,
+		log: recentWellness[0] ?? null,
+	});
+	const weeklyTrendContext = buildWeeklyWellnessTrendContext(recentWellness);
+
 	const prompt = [
 		"You are an expert calisthenics coach creating a 7-day weekly plan.",
 		`User level: ${profile.experienceLevel}`,
@@ -166,6 +271,15 @@ export async function generateWeeklyPlanForUser(
 		profile.injuries.length > 0
 			? `Injuries to avoid: ${profile.injuries.join(", ")}`
 			: "No reported injuries.",
+		cyclePhaseLines.length > 0
+			? `Cycle schedule (adapt volume conservatively on menstrual days, no medical claims):\n${cyclePhaseLines.join("\n")}`
+			: "",
+		latestWellnessContext
+			? `Recent wellness context (non-medical load adaptation):\n${latestWellnessContext}`
+			: "",
+		weeklyTrendContext
+			? `7-day wellness trend (non-medical recovery cues):\n${weeklyTrendContext}`
+			: "",
 		previousWeekVolume > 0
 			? `Previous week total volume: ${previousWeekVolume}. Keep weekly progression gradual (<= +10% volume, <= 1 progression step).`
 			: "This is the user's first week; start conservatively.",
@@ -186,7 +300,9 @@ export async function generateWeeklyPlanForUser(
 				measure: e.measure,
 			})),
 		),
-	].join("\n");
+	]
+		.filter(Boolean)
+		.join("\n");
 
 	let fallbackUsed = false;
 	let tokens = 0;
@@ -308,6 +424,19 @@ export async function getCurrentPlanPageData(
 				measure: true,
 				cues: true,
 				contraindications: true,
+				primaryMuscles: true,
+				secondaryMuscles: true,
+				muscles: {
+					select: {
+						muscleGroup: true,
+						role: true,
+						activationWeight: true,
+					},
+					orderBy: { activationWeight: "desc" },
+				},
+				masteryTargetSets: true,
+				masteryTargetReps: true,
+				masteryTargetSeconds: true,
 				progressionNextId: true,
 				status: true,
 				source: true,
