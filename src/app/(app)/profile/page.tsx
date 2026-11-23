@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { BodyTrackingView } from "@/components/features/body/body-tracking-view";
 import { AchievementsGrid } from "@/components/features/gamification/achievements-grid";
+import { MetricsDashboardView } from "@/components/features/metrics/metrics-dashboard-view";
 import {
 	ProfileHubTabs,
 	type ProfileTab,
@@ -14,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requireOnboarded } from "@/lib/auth/session";
 import { getBodyTrackingData } from "@/server/services/body-metric-service";
 import { getAchievementsForUser } from "@/server/services/gamification-service";
+import { getConsistencyMetricsData } from "@/server/services/metrics-service";
 import { getReminderStateForUser } from "@/server/services/push-reminder-service";
 
 function getInitials(name: string) {
@@ -26,7 +28,7 @@ function getInitials(name: string) {
 }
 
 function normalizeProfileTab(raw?: string): ProfileTab {
-	if (raw === "body" || raw === "settings") return raw;
+	if (raw === "metrics" || raw === "body" || raw === "settings") return raw;
 	return "overview";
 }
 
@@ -40,11 +42,13 @@ async function ProfileDetails({
 	const initialTab = normalizeProfileTab(resolvedParams.tab);
 	const { session, profile } = await requireOnboarded();
 
-	const [{ achievements }, bodyData, reminderState] = await Promise.all([
-		getAchievementsForUser(session.user.id),
-		getBodyTrackingData(session.user.id),
-		getReminderStateForUser(session.user.id),
-	]);
+	const [{ achievements }, metricsData, bodyData, reminderState] =
+		await Promise.all([
+			getAchievementsForUser(session.user.id),
+			getConsistencyMetricsData(session.user.id, profile),
+			getBodyTrackingData(session.user.id),
+			getReminderStateForUser(session.user.id),
+		]);
 
 	const overviewContent = (
 		<>
@@ -98,6 +102,8 @@ async function ProfileDetails({
 		</>
 	);
 
+	const metricsContent = <MetricsDashboardView data={metricsData} />;
+
 	const bodyContent = (
 		<BodyTrackingView
 			todayKey={bodyData.todayKey}
@@ -140,6 +146,7 @@ async function ProfileDetails({
 			<ProfileHubTabs
 				initialTab={initialTab}
 				overviewContent={overviewContent}
+				metricsContent={metricsContent}
 				bodyContent={bodyContent}
 				settingsContent={settingsContent}
 			/>

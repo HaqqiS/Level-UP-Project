@@ -155,6 +155,7 @@
 	},
 	"profileHub": {
 		"overviewTab": "Overview",
+		"metricsTab": "Metrics",
 		"bodyTab": "Body",
 		"settingsTab": "Settings"
 	},
@@ -723,5 +724,72 @@
 			"SKILL": "Skill",
 			"MOBILITY": "Mobility"
 		}
+	},
+	"metrics": {
+		"timeframeTitle": "Consistency overview",
+		"rangeLabel": "{start} – {end}",
+		"timeframes": {
+			"7d": "7D",
+			"30d": "30D",
+			"90d": "90D",
+			"all": "All"
+		},
+		"kpiAdherence": "Adherence",
+		"kpiAdherenceSub": "{completed}/{scheduled} scheduled",
+		"kpiSessions": "Sessions done",
+		"kpiSessionsPerWeek": "{rate} / wk avg",
+		"kpiDuration": "Training time",
+		"kpiAvgVsTarget": "Avg {avg} vs {target}m target",
+		"kpiTargetOnly": "Target {target}m / session",
+		"kpiStreak": "Current streak",
+		"kpiStreakDays": "{days}d",
+		"kpiBestStreak": "Best {days}d",
+		"kpiFreezeReady": "Freeze ready",
+		"kpiFreezeUsed": "Freeze used",
+		"sessionsChartTitle": "Scheduled vs Completed",
+		"sessionsChartDesc": {
+			"day": "Daily planned training days vs completed workouts",
+			"week": "Weekly scheduled sessions vs workouts completed",
+			"month": "Monthly scheduled sessions vs workouts completed"
+		},
+		"legendScheduled": "Scheduled",
+		"legendCompleted": "Completed",
+		"sessionsEmptyTitle": "No training history yet",
+		"sessionsEmptyDesc": "Complete a session in Train to track your adherence over time.",
+		"durationChartTitle": "Training duration",
+		"durationChartDesc": "Total minutes trained across your selected period.",
+		"durationChartDescWithTarget": "Minutes trained compared against your {target}m schedule target.",
+		"durationSeriesLabel": "Minutes",
+		"durationAvgBadge": "Avg {avg}",
+		"durationEmptyTitle": "No timed sessions yet",
+		"durationEmptyDesc": "Completed workouts with recorded duration appear here.",
+		"heatmapTitle": "Consistency grid",
+		"heatmapDesc": "Tap any day to inspect training status and duration.",
+		"heatmapDescClipped": "Showing the last 12 weeks. Tap any day for details.",
+		"heatmapOpenCalendar": "Calendar",
+		"heatmapStatus": {
+			"completed": "Workout done",
+			"frozen": "Streak freeze",
+			"missed": "Missed",
+			"pending": "Scheduled today",
+			"rest": "Rest day",
+			"before_join": "Before start",
+			"future": "Upcoming"
+		},
+		"heatmapCellStats": "{sets} set(s) · {duration}",
+		"heatmapCellTapHint": "No workout logged",
+		"heatmapLegendDone": "Done",
+		"heatmapLegendFreeze": "Freeze",
+		"heatmapLegendMissed": "Missed",
+		"heatmapLegendRest": "Rest",
+		"heatmapOnSchedule": "On-schedule",
+		"heatmapBonus": "Bonus",
+		"heatmapFreezes": "Freezes used",
+		"weekdayTitle": "Day-of-week adherence",
+		"weekdayDesc": "How consistently you hit each day of your weekly schedule.",
+		"weekdayRestLabel": "Rest day",
+		"weekdayBonusBadge": "+{count} bonus",
+		"weekdayBestBadge": "Strongest: {day}",
+		"weekdayMissedBadge": "Most missed: {day}"
 	}
 }
