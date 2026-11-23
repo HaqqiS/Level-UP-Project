@@ -1,6 +1,39 @@
 import { z } from "zod";
 import { INJURIES, SESSION_MINUTES } from "@/lib/validation/onboarding";
 
+/**
+ * Lightweight wire schemas sent to Gemini `responseJsonSchema`.
+ * Deliberately omit nested min/max array, integer, and string-length bounds so
+ * Gemini's constrained-decoding compiler never throws HTTP 400
+ * ("too many states for serving"). Strict clamping & safety enforcement runs in
+ * `src/lib/ai/plan-safety.ts` right after decoding.
+ */
+export const PlannedExerciseAiWireSchema = z.object({
+	exerciseId: z.string(),
+	sets: z.number().int(),
+	targetReps: z.number().int().nullable().optional(),
+	targetSeconds: z.number().int().nullable().optional(),
+	restSeconds: z.number().int().optional(),
+});
+
+export const WeeklySessionAiWireSchema = z.object({
+	dayOfWeek: z.number().int(),
+	focus: z.string(),
+	notes: z.string().optional(),
+	exercises: z.array(PlannedExerciseAiWireSchema),
+});
+
+export const WeeklyPlanAiWireSchema = z.object({
+	sessions: z.array(WeeklySessionAiWireSchema),
+	notes: z.string(),
+});
+
+export const AdjustedSessionAiWireSchema = z.object({
+	focus: z.string(),
+	notes: z.string(),
+	exercises: z.array(PlannedExerciseAiWireSchema),
+});
+
 export const PlannedExerciseAiSchema = z.object({
 	exerciseId: z.string().min(1),
 	sets: z.number().int().min(1).max(6),
@@ -35,7 +68,13 @@ export const AdjustedSessionAiSchema = z.object({
 	exercises: z.array(PlannedExerciseAiSchema).min(1).max(8),
 });
 
-export type PlannedExerciseAi = z.output<typeof PlannedExerciseAiSchema>;
-export type WeeklyPlanAi = z.output<typeof WeeklyPlanAiSchema>;
+export type PlannedExerciseAi = {
+	exerciseId: string;
+	sets: number;
+	targetReps?: number | null;
+	targetSeconds?: number | null;
+	restSeconds?: number;
+};
+export type WeeklyPlanAi = z.output<typeof WeeklyPlanAiWireSchema>;
 export type DailyCheckinInput = z.input<typeof DailyCheckinInputSchema>;
-export type AdjustedSessionAi = z.output<typeof AdjustedSessionAiSchema>;
+export type AdjustedSessionAi = z.output<typeof AdjustedSessionAiWireSchema>;

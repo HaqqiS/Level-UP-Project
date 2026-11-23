@@ -1,10 +1,16 @@
 "use client";
-import { Info } from "lucide-react";
+import { Info, Loader2, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { ExerciseDetailSheet } from "@/components/features/exercises/exercise-detail-sheet";
 import type { ExerciseItem } from "@/components/features/exercises/types";
-import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
+import {
+	Alert,
+	AlertAction,
+	AlertDescription,
+	AlertTitle,
+} from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import {
 	Frame,
@@ -19,6 +25,8 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { regenerateFallbackWeeklyPlanAction } from "@/server/actions/plan";
 import type { WeeklyPlanViewData } from "./types";
 
 export function WeeklyPlanView({
@@ -31,6 +39,7 @@ export function WeeklyPlanView({
 	allExercises: readonly ExerciseItem[];
 }) {
 	const t = useTranslations();
+	const [retrying, startRetry] = useTransition();
 	const [selectedExercise, setSelectedExercise] = useState<ExerciseItem | null>(
 		null,
 	);
@@ -41,11 +50,38 @@ export function WeeklyPlanView({
 		todaySession ? [todaySession.id] : [],
 	);
 
+	function handleRetryWithAi() {
+		startRetry(async () => {
+			const result = await regenerateFallbackWeeklyPlanAction();
+			if (!result.ok) {
+				toast.error(t("today.generateError"));
+				return;
+			}
+			if (result.fallbackUsed) {
+				toast.info(t("today.generateFallback"));
+			} else {
+				toast.success(t("today.generateSuccess"));
+			}
+		});
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
 			{plan.fallbackUsed && (
 				<Alert variant="warning">
 					<AlertDescription>{t("plan.fallbackNote")}</AlertDescription>
+					<AlertAction>
+						<Button
+							type="button"
+							size="xs"
+							variant="outline"
+							disabled={retrying}
+							onClick={handleRetryWithAi}
+						>
+							{retrying ? <Loader2 className="animate-spin" /> : <Sparkles />}
+							{retrying ? t("plan.retryingAi") : t("plan.retryAiButton")}
+						</Button>
+					</AlertAction>
 				</Alert>
 			)}
 

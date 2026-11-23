@@ -414,6 +414,25 @@ export function buildFallbackWeeklyPlan(params: {
 	};
 }
 
+function clampText(
+	value: string | null | undefined,
+	maxLen: number,
+	fallback: string,
+): string {
+	const trimmed = value?.trim() ?? "";
+	if (!trimmed) return fallback;
+	return trimmed.length > maxLen ? trimmed.slice(0, maxLen).trimEnd() : trimmed;
+}
+
+function clampOptionalText(
+	value: string | null | undefined,
+	maxLen: number,
+): string | null {
+	const trimmed = value?.trim() ?? "";
+	if (!trimmed) return null;
+	return trimmed.length > maxLen ? trimmed.slice(0, maxLen).trimEnd() : trimmed;
+}
+
 export function enforceWeeklySafetyBounds(params: {
 	aiPlan: WeeklyPlanAi;
 	profile: PlanProfileInput;
@@ -454,6 +473,7 @@ export function enforceWeeklySafetyBounds(params: {
 		const validExercises: NormalizedPlannedExercise[] = [];
 
 		for (const rawEx of aiSession?.exercises ?? []) {
+			if (validExercises.length >= 8) break;
 			if (!eligibleIds.has(rawEx.exerciseId)) continue;
 			const safeId = clampProgressionStep(
 				rawEx.exerciseId,
@@ -480,8 +500,8 @@ export function enforceWeeklySafetyBounds(params: {
 			});
 			return {
 				dayOfWeek,
-				focus: aiSession?.focus ?? built.focus,
-				notes: aiSession?.notes ?? null,
+				focus: clampText(aiSession?.focus, 80, built.focus),
+				notes: clampOptionalText(aiSession?.notes, 240),
 				isRest: false,
 				baselineVolume: computeSessionVolume(built.exercises),
 				exercises: built.exercises,
@@ -490,8 +510,8 @@ export function enforceWeeklySafetyBounds(params: {
 
 		return {
 			dayOfWeek,
-			focus: aiSession?.focus ?? "Calisthenics Session",
-			notes: aiSession?.notes ?? null,
+			focus: clampText(aiSession?.focus, 80, "Calisthenics Session"),
+			notes: clampOptionalText(aiSession?.notes, 240),
 			isRest: false,
 			baselineVolume: computeSessionVolume(validExercises),
 			exercises: validExercises,
@@ -499,7 +519,11 @@ export function enforceWeeklySafetyBounds(params: {
 	});
 
 	return {
-		notes: aiPlan.notes,
+		notes: clampText(
+			aiPlan.notes,
+			400,
+			"Structured calisthenics schedule tailored to your equipment and level.",
+		),
 		sessions: capWeeklyVolume(sessions, previousWeekVolume),
 	};
 }
@@ -534,6 +558,7 @@ export function enforceDailyAdjustmentBounds(params: {
 	const safeExercises: NormalizedPlannedExercise[] = [];
 
 	for (const raw of candidate.exercises) {
+		if (safeExercises.length >= 8) break;
 		const meta = painSafeById.get(raw.exerciseId);
 		if (!meta || seen.has(meta.id)) continue;
 		seen.add(meta.id);
@@ -586,8 +611,12 @@ export function enforceDailyAdjustmentBounds(params: {
 			: safeExercises;
 
 	return {
-		focus: candidate.focus,
-		notes: candidate.notes,
+		focus: clampText(candidate.focus, 80, "Adjusted Session"),
+		notes: clampText(
+			candidate.notes,
+			300,
+			"Adjusted based on today's check-in.",
+		),
 		exercises: clamped,
 	};
 }

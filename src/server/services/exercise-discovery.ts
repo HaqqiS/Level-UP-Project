@@ -1,8 +1,7 @@
 import "server-only";
-import { google } from "@ai-sdk/google";
-import { generateObject, generateText } from "ai";
 import {
-	ExerciseDiscoveryResponseSchema,
+	ExerciseCandidateSchema,
+	ExerciseDiscoveryAiWireSchema,
 	isDuplicateExercise,
 	normalizeSlug,
 } from "@/lib/ai/exercise-schema";
@@ -22,6 +21,10 @@ import {
 	MUSCLE_GROUPS,
 } from "@/lib/exercises/muscles";
 import { wouldEdgeCreateCycle } from "@/lib/exercises/progression-dag";
+import {
+	generateGroundedSearchWithFallback,
+	generateStructuredWithFallback,
+} from "@/server/services/ai-client";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 
 export const DAILY_DISCOVERY_LIMIT = 3;
@@ -103,33 +106,26 @@ export async function discoverExercisesForProfile(params: {
 	let firstGroundUrl: string | undefined;
 
 	try {
-		const searchRes = await generateText({
-			model: google("gemini-2.5-flash"),
-			tools: {
-				google_search: google.tools.googleSearch({}),
-			},
+		const searchRes = await generateGroundedSearchWithFallback({
 			prompt: searchPrompt,
-			abortSignal: AbortSignal.timeout(15_000),
+			label: "exercise-discovery",
 		});
 		groundingContext = searchRes.text;
-		totalTokens += searchRes.usage?.totalTokens ?? 0;
-		const firstSource = searchRes.sources?.[0];
-		if (
-			firstSource &&
-			"url" in firstSource &&
-			typeof firstSource.url === "string"
-		) {
-			firstGroundUrl = firstSource.url;
-		}
-	} catch {
+		totalTokens += searchRes.tokens;
+		firstGroundUrl = searchRes.firstGroundUrl;
+	} catch (error) {
+		console.warn(
+			"[ai:exercise-discovery] search grounding failed, falling back to direct structured generation:",
+			error,
+		);
 		// Fall back to direct structured generation if search grounding fails/times out.
 		groundingContext = searchPrompt;
 	}
 
 	try {
-		const structured = await generateObject({
-			model: google("gemini-2.5-flash"),
-			schema: ExerciseDiscoveryResponseSchema,
+		const structured = await generateStructuredWithFallback({
+			schema: ExerciseDiscoveryAiWireSchema,
+			label: "exercise-discovery",
 			prompt: [
 				`Normalize up to 2 calisthenics exercises for pattern ${pattern} from the research notes below.`,
 				"Strict constraints:",
@@ -149,10 +145,9 @@ export async function discoverExercisesForProfile(params: {
 			]
 				.filter(Boolean)
 				.join("\n"),
-			abortSignal: AbortSignal.timeout(15_000),
 		});
 
-		totalTokens += structured.usage?.totalTokens ?? 0;
+		totalTokens += structured.tokens;
 
 		const createdNames: string[] = [];
 		const currentExisting = [...existing];
@@ -162,12 +157,14 @@ export async function discoverExercisesForProfile(params: {
 			toId: e.toExerciseId,
 		}));
 
-		for (const candidate of structured.object.exercises) {
-			const normalized = {
-				...candidate,
-				slug: normalizeSlug(candidate.slug || candidate.name),
+		for (const rawCandidate of structured.object.exercises.slice(0, 3)) {
+			const parsedCandidate = ExerciseCandidateSchema.safeParse({
+				...rawCandidate,
+				slug: normalizeSlug(rawCandidate.slug || rawCandidate.name),
 				pattern,
-			};
+			});
+			if (!parsedCandidate.success) continue;
+			const normalized = parsedCandidate.data;
 
 			if (isDuplicateExercise(normalized, currentExisting)) continue;
 
@@ -310,7 +307,8 @@ export async function discoverExercisesForProfile(params: {
 		}
 
 		return { ok: true, addedCount: createdNames.length, names: createdNames };
-	} catch {
+	} catch (error) {
+		console.error("[ai:exercise-discovery] all AI models failed:", error);
 		await db.aiUsage.create({
 			data: {
 				userId,

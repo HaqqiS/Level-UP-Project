@@ -21,6 +21,18 @@ export async function generateCurrentWeekPlanAction(): Promise<GeneratePlanResul
 	return result;
 }
 
+export async function regenerateFallbackWeeklyPlanAction(): Promise<GeneratePlanResult> {
+	const { session } = await requireOnboarded();
+	const result = await generateWeeklyPlanForUser(session.user.id, {
+		forceRegenerateFallback: true,
+	});
+	if (result.ok) {
+		revalidatePath("/today");
+		revalidatePath("/calendar");
+	}
+	return result;
+}
+
 export async function submitDailyCheckinAction(
 	input: DailyCheckinInput,
 ): Promise<CheckinResult> {

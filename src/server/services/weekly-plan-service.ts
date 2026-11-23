@@ -1,6 +1,4 @@
 import "server-only";
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
 import { db } from "@/lib/db";
 import "@/lib/env";
 import {
@@ -9,7 +7,7 @@ import {
 	enforceWeeklySafetyBounds,
 	type PlanExerciseMeta,
 } from "@/lib/ai/plan-safety";
-import { WeeklyPlanAiSchema } from "@/lib/ai/plan-schema";
+import { WeeklyPlanAiWireSchema } from "@/lib/ai/plan-schema";
 import { filterEligibleExercises } from "@/lib/exercises/eligibility";
 import {
 	buildWeeklyWellnessTrendContext,
@@ -17,9 +15,8 @@ import {
 	computeDetailedCyclePhaseForDate,
 	parsePainDetailsRecord,
 } from "@/lib/wellness/cycle-and-wellness";
+import { generateStructuredWithFallback } from "@/server/services/ai-client";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
-
-const AI_MODEL_ID = "gemini-2.5-flash";
 
 export function getLocalDateKey(
 	timezone = "Asia/Jakarta",
@@ -108,6 +105,7 @@ export type GeneratePlanResult =
 
 export async function generateWeeklyPlanForUser(
 	userId: string,
+	options?: { forceRegenerateFallback?: boolean },
 ): Promise<GeneratePlanResult> {
 	const profile = await db.profile.findUnique({ where: { userId } });
 	assertCanGeneratePlan(profile);
@@ -118,9 +116,23 @@ export async function generateWeeklyPlanForUser(
 
 	const existing = await db.weeklyPlan.findUnique({
 		where: { userId_weekStart: { userId, weekStart } },
-		select: { id: true, fallbackUsed: true },
+		select: {
+			id: true,
+			fallbackUsed: true,
+			sessions: {
+				select: {
+					id: true,
+					dayOfWeek: true,
+					dailyCheckin: { select: { id: true } },
+					workoutLogs: { select: { id: true }, take: 1 },
+				},
+			},
+		},
 	});
-	if (existing) {
+	const canRegenerateFallback = Boolean(
+		existing?.fallbackUsed && options?.forceRegenerateFallback,
+	);
+	if (existing && !canRegenerateFallback) {
 		return {
 			ok: true,
 			planId: existing.id,
@@ -305,19 +317,19 @@ export async function generateWeeklyPlanForUser(
 		.join("\n");
 
 	let fallbackUsed = false;
+	let usedModelId = "rule-based-fallback";
 	let tokens = 0;
 	let rawJson: object | undefined;
 	let safePlan: ReturnType<typeof enforceWeeklySafetyBounds>;
 
 	try {
-		const response = await generateObject({
-			model: google(AI_MODEL_ID),
-			schema: WeeklyPlanAiSchema,
+		const response = await generateStructuredWithFallback({
+			schema: WeeklyPlanAiWireSchema,
 			prompt,
-			maxRetries: 1,
-			abortSignal: AbortSignal.timeout(15_000),
+			label: "weekly-plan",
 		});
-		tokens = response.usage?.totalTokens ?? 0;
+		tokens = response.tokens;
+		usedModelId = response.modelId;
 		rawJson = response.object;
 		safePlan = enforceWeeklySafetyBounds({
 			aiPlan: response.object,
@@ -332,7 +344,11 @@ export async function generateWeeklyPlanForUser(
 			previousWeekExerciseIds,
 			previousWeekVolume,
 		});
-	} catch {
+	} catch (error) {
+		console.error(
+			"[ai:weekly-plan] all AI models failed, using rule-based fallback:",
+			error,
+		);
 		fallbackUsed = true;
 		safePlan = buildFallbackWeeklyPlan({
 			profile: {
@@ -348,6 +364,105 @@ export async function generateWeeklyPlanForUser(
 		});
 	}
 
+	if (existing && canRegenerateFallback) {
+		if (fallbackUsed) {
+			await db.aiUsage.create({
+				data: {
+					userId,
+					kind: "WEEKLY",
+					date: dateKey,
+					tokens,
+					success: false,
+				},
+			});
+			return { ok: true, planId: existing.id, fallbackUsed: true };
+		}
+
+		const existingByDay = new Map(
+			existing.sessions.map((s) => [s.dayOfWeek, s]),
+		);
+
+		await db.$transaction(async (tx) => {
+			await tx.weeklyPlan.update({
+				where: { id: existing.id },
+				data: {
+					aiModel: usedModelId,
+					notes: safePlan.notes,
+					rawJson,
+					fallbackUsed: false,
+				},
+			});
+
+			for (const session of safePlan.sessions) {
+				const prev = existingByDay.get(session.dayOfWeek);
+				// Preserve any session the user already checked into or logged sets for.
+				if (prev && (prev.dailyCheckin || prev.workoutLogs.length > 0)) {
+					continue;
+				}
+
+				if (prev) {
+					await tx.plannedExercise.deleteMany({
+						where: { plannedSessionId: prev.id },
+					});
+					await tx.plannedSession.update({
+						where: { id: prev.id },
+						data: {
+							date: getDateForDayOfWeek(weekStart, session.dayOfWeek),
+							focus: session.focus,
+							notes: session.notes,
+							isRest: session.isRest,
+							baselineVolume: session.baselineVolume,
+							exercises: {
+								create: session.exercises.map((ex, index) => ({
+									exerciseId: ex.exerciseId,
+									order: index,
+									sets: ex.sets,
+									targetReps: ex.targetReps,
+									targetSeconds: ex.targetSeconds,
+									restSeconds: ex.restSeconds,
+								})),
+							},
+						},
+					});
+				} else {
+					await tx.plannedSession.create({
+						data: {
+							weeklyPlanId: existing.id,
+							dayOfWeek: session.dayOfWeek,
+							date: getDateForDayOfWeek(weekStart, session.dayOfWeek),
+							focus: session.focus,
+							notes: session.notes,
+							isRest: session.isRest,
+							baselineVolume: session.baselineVolume,
+							exercises: {
+								create: session.exercises.map((ex, index) => ({
+									exerciseId: ex.exerciseId,
+									order: index,
+									sets: ex.sets,
+									targetReps: ex.targetReps,
+									targetSeconds: ex.targetSeconds,
+									restSeconds: ex.restSeconds,
+								})),
+							},
+						},
+					});
+				}
+			}
+
+			await tx.aiUsage.create({
+				data: {
+					userId,
+					kind: "WEEKLY",
+					date: dateKey,
+					tokens,
+					success: true,
+				},
+			});
+		});
+
+		return { ok: true, planId: existing.id, fallbackUsed: false };
+	}
+
 	const created = await db.$transaction(async (tx) => {
 		await tx.weeklyPlan.updateMany({
 			where: { userId, status: "ACTIVE" },
@@ -359,7 +474,7 @@ export async function generateWeeklyPlanForUser(
 				userId,
 				weekStart,
 				status: "ACTIVE",
-				aiModel: fallbackUsed ? "rule-based-fallback" : AI_MODEL_ID,
+				aiModel: fallbackUsed ? "rule-based-fallback" : usedModelId,
 				notes: safePlan.notes,
 				rawJson,
 				fallbackUsed,

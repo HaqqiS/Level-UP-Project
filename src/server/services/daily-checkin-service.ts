@@ -1,6 +1,4 @@
 import "server-only";
-import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
 import {
 	computeSessionVolume,
 	enforceDailyAdjustmentBounds,
@@ -8,7 +6,7 @@ import {
 	type PlanExerciseMeta,
 } from "@/lib/ai/plan-safety";
 import {
-	AdjustedSessionAiSchema,
+	AdjustedSessionAiWireSchema,
 	type DailyCheckinInput,
 	DailyCheckinInputSchema,
 } from "@/lib/ai/plan-schema";
@@ -21,10 +19,9 @@ import {
 	mapWellnessPainTagsToInjuryAreas,
 	parsePainDetailsRecord,
 } from "@/lib/wellness/cycle-and-wellness";
+import { generateStructuredWithFallback } from "@/server/services/ai-client";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 import { getLocalDateKey } from "@/server/services/weekly-plan-service";
-
-const AI_MODEL_ID = "gemini-2.5-flash";
 
 export type CheckinResult =
 	| { ok: true; fallbackUsed: boolean; aiNote: string | null }
@@ -221,13 +218,12 @@ export async function submitDailyCheckinAndAdjust(params: {
 	let tokens = 0;
 
 	try {
-		const response = await generateObject({
-			model: google(AI_MODEL_ID),
-			schema: AdjustedSessionAiSchema,
+		const response = await generateStructuredWithFallback({
+			schema: AdjustedSessionAiWireSchema,
 			prompt,
-			abortSignal: AbortSignal.timeout(15_000),
+			label: "daily-checkin",
 		});
-		tokens = response.usage?.totalTokens ?? 0;
+		tokens = response.tokens;
 
 		const safe = enforceDailyAdjustmentBounds({
 			plannedExercises: plannedNormalized,
@@ -284,8 +280,12 @@ export async function submitDailyCheckinAndAdjust(params: {
 		});
 
 		return { ok: true, fallbackUsed: false, aiNote: safe.notes };
-	} catch {
-		// On AI failure or timeout (> 15s), leave planned session unchanged per PRD.
+	} catch (error) {
+		console.error(
+			"[ai:daily-checkin] all AI models failed, keeping planned session unchanged:",
+			error,
+		);
+		// On AI failure or timeout, leave planned session unchanged per PRD.
 		await db.$transaction([
 			db.dailyCheckin.create({
 				data: {

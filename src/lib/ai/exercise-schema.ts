@@ -36,6 +36,39 @@ export const ExerciseDiscoveryResponseSchema = z.object({
 	exercises: z.array(ExerciseCandidateSchema).max(3),
 });
 
+/**
+ * Lightweight wire schema for Gemini structured output (avoids nested min/max
+ * and regex FSM state explosion). Each candidate is strictly parsed through
+ * `ExerciseCandidateSchema.safeParse()` immediately after decoding.
+ */
+export const ExerciseDiscoveryAiWireSchema = z.object({
+	exercises: z.array(
+		z.object({
+			name: z.string(),
+			slug: z.string(),
+			pattern: z.string(),
+			difficulty: z.number().int(),
+			equipment: z.array(z.string()),
+			measure: z.string(),
+			cues: z.array(z.string()),
+			contraindications: z.array(z.string()).optional(),
+			primaryMuscles: z.array(z.string()).optional(),
+			secondaryMuscles: z.array(z.string()).optional(),
+			muscles: z
+				.array(
+					z.object({
+						muscleGroup: z.string(),
+						role: z.string(),
+						activationWeight: z.number().int(),
+					}),
+				)
+				.optional(),
+			suggestedPrerequisiteSlugs: z.array(z.string()).optional(),
+			sourceUrl: z.string().optional(),
+		}),
+	),
+});
+
 export type ExerciseCandidate = z.output<typeof ExerciseCandidateSchema>;
 
 export function normalizeSlug(input: string): string {
