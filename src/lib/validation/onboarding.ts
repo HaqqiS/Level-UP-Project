@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CYCLE_REGULARITY_VALUES } from "@/lib/wellness/cycle-engine";
 
 export const EXPERIENCE_LEVELS = [
 	"NONE",
@@ -58,7 +59,14 @@ export const ScheduleStep = z.object({
 
 export const BodyStep = z.object({
 	heightCm: z.number().min(100).max(250),
-	weightKg: z.number().min(25).max(300),
+	weightKg: z
+		.number()
+		.min(25)
+		.max(300)
+		.refine(
+			(val) => Math.abs(val * 100 - Math.round(val * 100)) < 1e-6,
+			"Weight may have at most 2 decimal places",
+		),
 	birthYear: z
 		.number()
 		.int()
@@ -66,6 +74,14 @@ export const BodyStep = z.object({
 		.max(new Date().getFullYear() - 10)
 		.optional(),
 	sex: z.enum(["male", "female", "prefer_not"]).optional(),
+	tracksPeriod: z.boolean().default(false),
+	lastPeriodStartDate: z
+		.string()
+		.regex(/^\d{4}-\d{2}-\d{2}$/)
+		.optional(),
+	averageCycleDays: z.number().int().min(20).max(45).default(28),
+	averagePeriodDays: z.number().int().min(2).max(10).default(5),
+	cycleRegularity: z.enum(CYCLE_REGULARITY_VALUES).default("UNKNOWN"),
 	injuries: z.array(z.enum(INJURIES)).default([]),
 	injuryNotes: z.string().max(500).optional(),
 });

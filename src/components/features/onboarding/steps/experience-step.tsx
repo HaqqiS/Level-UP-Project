@@ -26,9 +26,9 @@ import {
 import type { StepProps } from "./types";
 
 const SELF_CHECK_FIELDS = [
-	{ key: "maxPushups", max: 200 },
-	{ key: "maxPullups", max: 100 },
-	{ key: "plankSeconds", max: 1800 },
+	{ key: "maxPushups", max: 200, step: 1, largeStep: 10, snapOnStep: false },
+	{ key: "maxPullups", max: 100, step: 1, largeStep: 10, snapOnStep: false },
+	{ key: "plankSeconds", max: 1800, step: 5, largeStep: 15, snapOnStep: true },
 ] as const;
 
 export function ExperienceStep({ draft, update }: StepProps) {
@@ -63,22 +63,33 @@ export function ExperienceStep({ draft, update }: StepProps) {
 			<FieldSet>
 				<FieldLegend variant="label">{t("selfCheck")}</FieldLegend>
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-					{SELF_CHECK_FIELDS.map(({ key, max }) => (
-						<NumberField
-							key={key}
-							min={0}
-							max={max}
-							value={draft[key] ?? null}
-							onValueChange={(value) => update({ [key]: value ?? undefined })}
-						>
-							<NumberFieldScrubArea label={t(key)} />
-							<NumberFieldGroup>
-								<NumberFieldDecrement />
-								<NumberFieldInput placeholder="—" />
-								<NumberFieldIncrement />
-							</NumberFieldGroup>
-						</NumberField>
-					))}
+					{SELF_CHECK_FIELDS.map(
+						({ key, max, step, largeStep, snapOnStep }) => (
+							<NumberField
+								key={key}
+								min={0}
+								max={max}
+								step={step}
+								smallStep={step}
+								largeStep={largeStep}
+								snapOnStep={snapOnStep}
+								format={{ useGrouping: false, maximumFractionDigits: 0 }}
+								value={draft[key] ?? null}
+								onValueChange={(value) =>
+									update({
+										[key]: value === null ? undefined : Math.trunc(value),
+									})
+								}
+							>
+								<NumberFieldScrubArea label={t(key)} />
+								<NumberFieldGroup>
+									<NumberFieldDecrement />
+									<NumberFieldInput placeholder="—" />
+									<NumberFieldIncrement />
+								</NumberFieldGroup>
+							</NumberField>
+						),
+					)}
 				</div>
 			</FieldSet>
 		</FieldGroup>

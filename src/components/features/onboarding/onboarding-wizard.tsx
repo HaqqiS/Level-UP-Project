@@ -1,10 +1,18 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { Check, ChevronLeft, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/reui/badge";
+import {
+	Frame,
+	FrameDescription,
+	FrameFooter,
+	FrameHeader,
+	FramePanel,
+	FrameTitle,
+} from "@/components/reui/frame";
 import {
 	Stepper,
 	StepperContent,
@@ -12,17 +20,10 @@ import {
 	StepperItem,
 	StepperNav,
 	StepperPanel,
+	StepperSeparator,
 	StepperTrigger,
 } from "@/components/reui/stepper";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 import {
 	BodyStep,
 	DisclaimerStep,
@@ -82,11 +83,23 @@ const STEPS = [
 
 const TOTAL = STEPS.length;
 
-export function OnboardingWizard() {
+export function OnboardingWizard({
+	initialDraft,
+}: {
+	initialDraft?: Partial<OnboardingInput>;
+} = {}) {
 	const t = useTranslations();
-	const { step, draft, setStep, update, reset } = useOnboardingStore();
+	const { step, draft, setStep, update, hydrate, reset } = useOnboardingStore();
 	const [pending, startTransition] = useTransition();
 	const [direction, setDirection] = useState(1);
+	const hydratedRef = useRef(false);
+
+	useEffect(() => {
+		if (!hydratedRef.current && initialDraft) {
+			hydratedRef.current = true;
+			hydrate(initialDraft);
+		}
+	}, [hydrate, initialDraft]);
 
 	const active = STEPS[step];
 	const valid = active.schema.safeParse(draft).success;
@@ -98,11 +111,21 @@ export function OnboardingWizard() {
 	}
 
 	function submit() {
+		const payload = { ...draft } as OnboardingInput;
 		startTransition(async () => {
-			const res = await completeOnboarding(draft as OnboardingInput);
-			// completeOnboarding redirects on success; reaching here means failure.
-			if (res && !res.ok) toast.error(t("common.error"));
-			else reset();
+			try {
+				const res = await completeOnboarding(payload);
+				// completeOnboarding redirects on success; reaching here means failure.
+				if (res && !res.ok) {
+					toast.error(t("common.error"));
+				} else {
+					reset();
+				}
+			} catch (err) {
+				// Next.js redirect() throws NEXT_REDIRECT on success — clear persisted wizard draft.
+				reset();
+				throw err;
+			}
 		});
 	}
 
@@ -118,6 +141,7 @@ export function OnboardingWizard() {
 						setStep(nextStep - 1);
 					}
 				}}
+				indicators={{ completed: <Check className="size-3.5" /> }}
 				className="flex flex-col gap-3"
 			>
 				<div className="flex items-center justify-between gap-3">
@@ -135,19 +159,19 @@ export function OnboardingWizard() {
 					</Badge>
 				</div>
 
-				<StepperNav className="gap-1.5">
-					{STEPS.map((_, index) => (
+				<StepperNav>
+					{STEPS.map((item, index) => (
 						<StepperItem
-							key={STEPS[index].titleKey}
+							key={item.titleKey}
 							step={index + 1}
 							disabled={index > step || pending}
-							className="flex-1 overflow-hidden first:rounded-s-full last:rounded-e-full"
 						>
-							<StepperTrigger className="w-full">
-								<StepperIndicator className="h-2 w-full rounded-none! bg-border data-[state=active]:bg-primary data-[state=completed]:bg-primary">
-									<span className="sr-only">{index + 1}</span>
-								</StepperIndicator>
+							<StepperTrigger>
+								<StepperIndicator>{index + 1}</StepperIndicator>
 							</StepperTrigger>
+							{index < STEPS.length - 1 && (
+								<StepperSeparator className="group-data-[state=completed]/step:bg-primary" />
+							)}
 						</StepperItem>
 					))}
 				</StepperNav>
@@ -162,21 +186,21 @@ export function OnboardingWizard() {
 							exit={{ x: direction * -40, opacity: 0 }}
 							transition={{ duration: 0.2 }}
 						>
-							<Card>
-								<CardHeader>
-									<CardTitle>{t(active.titleKey)}</CardTitle>
+							<Frame>
+								<FrameHeader>
+									<FrameTitle>{t(active.titleKey)}</FrameTitle>
 									{active.subtitleKey && (
-										<CardDescription>{t(active.subtitleKey)}</CardDescription>
+										<FrameDescription>{t(active.subtitleKey)}</FrameDescription>
 									)}
-								</CardHeader>
-								<CardContent>
+								</FrameHeader>
+								<FramePanel>
 									<StepperPanel>
 										<StepperContent value={step + 1}>
 											<StepComponent draft={draft} update={update} />
 										</StepperContent>
 									</StepperPanel>
-								</CardContent>
-								<CardFooter>
+								</FramePanel>
+								<FrameFooter>
 									<Button
 										className="w-full"
 										disabled={!valid || pending}
@@ -189,8 +213,8 @@ export function OnboardingWizard() {
 												? t("common.finish")
 												: t("common.next")}
 									</Button>
-								</CardFooter>
-							</Card>
+								</FrameFooter>
+							</Frame>
 						</motion.div>
 					</AnimatePresence>
 				</div>

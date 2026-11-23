@@ -3,6 +3,7 @@ import { useTranslations } from "next-intl";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Field,
+	FieldContent,
 	FieldGroup,
 	FieldLabel,
 	FieldTitle,
@@ -28,7 +29,9 @@ export function EquipmentStep({ draft, update }: StepProps) {
 									update({ equipment: toggleItem(draft.equipment, item) })
 								}
 							/>
-							<FieldTitle>{t(item)}</FieldTitle>
+							<FieldContent>
+								<FieldTitle>{t(item)}</FieldTitle>
+							</FieldContent>
 						</Field>
 					</FieldLabel>
 				);
