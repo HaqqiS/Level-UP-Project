@@ -552,6 +552,9 @@ export function WellnessCategoryCards({
 
 							<div className="flex items-center gap-2 pt-1">
 								<Input
+									id="custom-supplement-input"
+									name="customSupplement"
+									aria-label={t("addCustomSupplementPlaceholder")}
 									value={newSupplementName}
 									maxLength={40}
 									onChange={(e) => setNewSupplementName(e.target.value)}
@@ -668,6 +671,9 @@ export function WellnessCategoryCards({
 
 							<div className="flex items-center gap-2 pt-1">
 								<Input
+									id="custom-medication-input"
+									name="customMedication"
+									aria-label={t("addCustomMedicationPlaceholder")}
 									value={newMedicationName}
 									maxLength={40}
 									onChange={(e) => setNewMedicationName(e.target.value)}
@@ -714,6 +720,7 @@ export function WellnessCategoryCards({
 									type="button"
 									variant="ghost"
 									size="xs"
+									aria-label={t("sleepLearnMoreAria")}
 									onClick={() => onOpenLearnMore("sleep")}
 								>
 									<Info className="size-3.5" />
@@ -730,6 +737,7 @@ export function WellnessCategoryCards({
 								</FieldLabel>
 								<Input
 									id="wellness-sleep-time"
+									name="sleepTime"
 									type="time"
 									value={activeDraft.sleepTime ?? ""}
 									onChange={(e) =>
@@ -743,6 +751,7 @@ export function WellnessCategoryCards({
 								</FieldLabel>
 								<Input
 									id="wellness-wake-time"
+									name="wakeTime"
 									type="time"
 									value={activeDraft.wakeTime ?? ""}
 									onChange={(e) =>
@@ -827,6 +836,7 @@ export function WellnessCategoryCards({
 										type="button"
 										size="xs"
 										variant="outline"
+										className="border-border/80 bg-muted/65 text-foreground hover:bg-muted dark:bg-muted/75 dark:hover:bg-muted"
 										onClick={() =>
 											patchDraft({
 												hydrationMl: Math.min(
@@ -858,6 +868,7 @@ export function WellnessCategoryCards({
 							</FieldLabel>
 							<Textarea
 								id="wellness-notes"
+								name="notes"
 								maxLength={300}
 								value={activeDraft.notes ?? ""}
 								onChange={(e) => patchDraft({ notes: e.target.value || null })}

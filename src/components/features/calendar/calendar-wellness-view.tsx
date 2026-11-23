@@ -573,6 +573,9 @@ export function CalendarWellnessView({
 					<Search />
 				</InputGroupAddon>
 				<InputGroupInput
+					id="calendar-wellness-search"
+					name="calendarSearch"
+					aria-label={t("searchPlaceholder")}
 					value={searchQuery}
 					onChange={(e) => setSearchQuery(e.target.value)}
 					placeholder={t("searchPlaceholder")}

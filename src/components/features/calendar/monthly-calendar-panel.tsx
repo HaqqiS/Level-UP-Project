@@ -154,8 +154,8 @@ export function getCalendarDayButtonAppearance({
 } {
 	const baseLayout =
 		layout === "strip"
-			? "h-auto flex-col gap-0.5 px-0.5 py-1.5"
-			: "h-auto flex-col gap-1 px-0.5 py-2";
+			? "h-auto flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1.5"
+			: "h-auto min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 py-1.5";
 
 	if (state.isSelected) {
 		return {
@@ -370,6 +370,7 @@ export function MonthlyCalendarPanel({
 						variant="ghost"
 						size="icon-sm"
 						nativeButton={false}
+						aria-label={t("prevMonthAria")}
 						render={<Link href={`/calendar?month=${prevMonthKey}`} />}
 					>
 						<ChevronLeft />
@@ -379,6 +380,7 @@ export function MonthlyCalendarPanel({
 						variant="ghost"
 						size="icon-sm"
 						nativeButton={false}
+						aria-label={t("nextMonthAria")}
 						render={<Link href={`/calendar?month=${nextMonthKey}`} />}
 					>
 						<ChevronRight />
@@ -557,7 +559,7 @@ export function MonthlyCalendarPanel({
 							)}
 						</div>
 					) : (
-						<div className="rounded-xl bg-muted/40 p-2.5">
+						<div className="col-span-2 rounded-xl bg-muted/40 p-2.5">
 							<div className="text-xs text-muted-foreground">
 								{t("insightsTopSymptom")}
 							</div>
