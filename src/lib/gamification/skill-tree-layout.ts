@@ -118,33 +118,53 @@ export function computeBottomUpDagLayout<
 			nodeIds.has(edge.toExerciseId),
 	);
 
-	const tiersMap = computeTopologicalTiers(
-		patternExercises.map((ex) => ex.id),
-		intraEdges.map((edge) => ({
+	const allValidEdges = edges
+		.filter((edge) => edge.fromExerciseId !== edge.toExerciseId)
+		.map((edge) => ({
 			fromId: edge.fromExerciseId,
 			toId: edge.toExerciseId,
-		})),
+		}));
+
+	// Compute topological tiers across the global DAG so high-level nodes whose
+	// prerequisites live in another pattern stay elevated instead of dropping to T1.
+	const globalTiersMap = computeTopologicalTiers(
+		exercises.map((ex) => ex.id),
+		allValidEdges,
 	);
 
+	const rawTiersMap = new Map<string, number>();
+	for (const ex of patternExercises) {
+		rawTiersMap.set(ex.id, globalTiersMap.get(ex.id) ?? 1);
+	}
+
 	// Ensure tier(to) > tier(from) for all intra-pattern edges (cycle-safe bound)
-	const maxPossibleTier = patternExercises.length;
-	for (let pass = 0; pass < maxPossibleTier; pass += 1) {
+	const maxPossibleTier = exercises.length + patternExercises.length;
+	for (let pass = 0; pass < patternExercises.length; pass += 1) {
 		let changed = false;
 		for (const edge of intraEdges) {
-			const fromTier = tiersMap.get(edge.fromExerciseId) ?? 1;
-			const toTier = tiersMap.get(edge.toExerciseId) ?? 1;
+			const fromTier = rawTiersMap.get(edge.fromExerciseId) ?? 1;
+			const toTier = rawTiersMap.get(edge.toExerciseId) ?? 1;
 			if (toTier <= fromTier && fromTier + 1 <= maxPossibleTier) {
-				tiersMap.set(edge.toExerciseId, fromTier + 1);
+				rawTiersMap.set(edge.toExerciseId, fromTier + 1);
 				changed = true;
 			}
 		}
 		if (!changed) break;
 	}
 
+	// Compact populated tiers into consecutive 1..maxTier rows (no empty vertical gaps)
+	const distinctTiers = [...new Set(rawTiersMap.values())].sort(
+		(a, b) => a - b,
+	);
+	const compactTierByRaw = new Map<number, number>(
+		distinctTiers.map((rawTier, idx) => [rawTier, idx + 1]),
+	);
+
 	const exercisesByTier = new Map<number, T[]>();
 	let maxTier = 1;
 	for (const ex of patternExercises) {
-		const tier = tiersMap.get(ex.id) ?? 1;
+		const rawTier = rawTiersMap.get(ex.id) ?? 1;
+		const tier = compactTierByRaw.get(rawTier) ?? 1;
 		if (tier > maxTier) maxTier = tier;
 		const bucket = exercisesByTier.get(tier) ?? [];
 		bucket.push(ex);

@@ -66,8 +66,8 @@ const LEGACY_59_SLUGS = [
 ] as const;
 
 describe("expanded curated seed catalog & DAG integrity", () => {
-	it("contains >= 95 exercises, zero duplicate slugs, and preserves all 59 legacy slugs", () => {
-		expect(SEED_EXERCISES.length).toBeGreaterThanOrEqual(95);
+	it("contains 116 exercises (98 existing + 18 zero-equipment foundations), zero duplicate slugs, and preserves all 59 legacy slugs", () => {
+		expect(SEED_EXERCISES).toHaveLength(116);
 		const slugs = SEED_EXERCISES.map((ex) => ex.slug);
 		expect(new Set(slugs).size).toBe(slugs.length);
 		for (const legacySlug of LEGACY_59_SLUGS) {

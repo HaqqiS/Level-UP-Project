@@ -60,10 +60,10 @@ function buildSeedCatalog(): {
 }
 
 describe("computeBottomUpDagLayout", () => {
-	it("lays out all 98 seed exercises and 90 edges across every pattern with zero overlaps and bottom-up hierarchy", () => {
+	it("lays out all 116 seed exercises and 121 edges across every pattern with zero overlaps, single-path T1-T3 foundations, and bottom-up hierarchy", () => {
 		const { exercises, edges } = buildSeedCatalog();
-		expect(exercises).toHaveLength(98);
-		expect(edges).toHaveLength(90);
+		expect(exercises).toHaveLength(116);
+		expect(edges).toHaveLength(121);
 
 		const evaluation = evaluateSkillTree({
 			exercises,
@@ -120,6 +120,15 @@ describe("computeBottomUpDagLayout", () => {
 				}
 			}
 
+			// Every pattern starts with a clean single-path 3-tier ultra-beginner foundation (T1 -> T2 -> T3)
+			for (const foundationTier of [1, 2, 3]) {
+				const tierRow = layout.nodesByTier.find(
+					(g) => g.tier === foundationTier,
+				);
+				expect(tierRow?.nodes).toHaveLength(1);
+				expect(tierRow?.nodes[0]?.exercise.difficulty).toBe(1);
+			}
+
 			// Verify strictly parent.y > child.y and valid cubic Bezier pathD for all intra-pattern edges
 			for (const edge of layout.edges) {
 				const parent = nodeById.get(edge.fromId);
@@ -137,7 +146,7 @@ describe("computeBottomUpDagLayout", () => {
 			}
 		}
 
-		expect(totalLaidOutNodes).toBe(98);
+		expect(totalLaidOutNodes).toBe(116);
 	});
 
 	it("attaches crossPatternPortals on bar-muscle-up and wall-hspu-negative", () => {
