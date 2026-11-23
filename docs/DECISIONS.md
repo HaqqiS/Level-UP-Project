@@ -30,6 +30,7 @@ Lightweight ADRs. Format: context → decision → consequences.
 | 024 | 2026-11-23 | Gemini 3.8 Flash Fallback Chain, AI SDK v7 `Output.object`, Wire Schemas & AI Plan Retry | Accepted |
 | 025 | 2026-11-23 | 18 Zero-Equipment Never-Trained Foundations & Global-Tier Skill Tree Layout | Accepted |
 | 026 | 2026-11-23 | Card-Only UI Surface System (Style 4), ReUI `TimePicker`, and Batch Body Measurements with Collapsible History | Accepted |
+| 027 | 2026-11-23 | v2.5 Consistency & Adherence Dashboard in `/profile?tab=metrics` & Chart Palette Upgrade | Accepted |
 
 ---
 
@@ -95,3 +96,6 @@ Lightweight ADRs. Format: context → decision → consequences.
 
 ### 026 — Card-Only UI Surface System (Style 4), ReUI `TimePicker`, and Batch Body Measurements with Collapsible History
 **Context:** Nesting ReUI `Frame` wrappers around cards created double-border noise and inconsistent padding/icon symmetry across mobile views, while native `<input type="time">` varied across browsers and separate single-field Body Measurement tabs felt fragmented. **Decision:** Migrate all feature surfaces to a **Card-Only UI** (`<Card size="sm">` outer containers with `rounded-2xl bg-muted/50` borderless tonal sub-tiles and iOS-style grouped settings rows while retaining `src/components/reui/frame.tsx` unused), make Exercise List pattern tabs non-scrollable full-width, standardize time picking on 24h ReUI `TimePicker` (Sleep Duration and Push Reminders), batch `WAIST`/`CHEST`/`ARM` logging atomically, and place *Recent entries* / *Measurement history* inside a shared `MetricHistoryCollapsible`. **Consequences:** Clean Apple Health–inspired visual hierarchy, symmetric alignment, consistent 24h time UX, and streamlined body tracking.
+
+### 027 — v2.5 Consistency & Adherence Dashboard in `/profile?tab=metrics` & Chart Palette Upgrade
+**Context:** Adding a 5th route to the Apple HIG floating `BottomNav` would crowd mobile touch targets, while the original `base-luma` `--chart-2..4` tokens lacked sufficient contrast for multi-series Light/Dark charts. **Decision:** Add a 4th non-scrollable sub-tab `Metrics` inside `/profile` (`Overview | Metrics | Body | Settings`), compute all Consistency & Adherence metrics (`7D / 30D / 90D / All`, period-over-period deltas, adaptive daily/weekly/monthly buckets, 12-week activity grid, Mon–Sun adherence breakdown) deterministically without schema changes via `src/lib/metrics/consistency.ts` sharing `evaluateStreakHistory()`, wrap Recharts views in a `ResizeObserver` `MeasuredChartBox` so hidden tabs never emit `width(-1)` warnings, and upgrade `--chart-2..5` in `globals.css` while preserving `--chart-1` verbatim for `WeightTrendChart`. **Consequences:** Zero DB migration, instant client-side timeframe filtering, identical streak/freeze numbers across `/today`, `/calendar`, and `/profile?tab=metrics`, and high-contrast multi-series charts in Light and Dark themes.

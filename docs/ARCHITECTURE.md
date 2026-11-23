@@ -30,7 +30,7 @@ src/
 │   │   ├── today/        # Unified Train hub: Today + Logger + Weekly Plan + 26-region Muscle Map
 │   │   ├── calendar/     # Borderless Streak & Daily Wellness Tracker (v2)
 │   │   ├── exercises/    # Exercise Library: List + 3-Tier DAG Skill Tree (v2)
-│   │   ├── profile/      # 3-Tab Profile Hub: Overview + Body + Settings (Theme, Cycle, Push, Delete Account)
+│   │   ├── profile/      # 4-Tab Profile Hub: Overview + Metrics + Body + Settings (Theme, Cycle, Push, Delete Account)
 │   │   ├── plan/         # Legacy redirect → /today?tab=plan
 │   │   ├── log/          # Legacy redirect → /today?tab=log
 │   │   └── body/         # Legacy redirect → /profile?tab=body
@@ -43,7 +43,7 @@ src/
 │   ├── ui/               # shadcn/ui (base-luma, @base-ui/react)
 │   ├── reui/             # ReUI primitives (DatePicker, TimePicker, NumberField, Badge, Alert, etc.)
 │   ├── theme-provider.tsx # next-themes provider + dynamic meta theme-color sync
-│   └── features/         # auth, body, calendar, exercises, gamification, logger, muscles, onboarding, plan, profile, push, pwa, shell
+│   └── features/         # auth, body, calendar, exercises, gamification, logger, metrics, muscles, onboarding, plan, profile, push, pwa, shell
 ├── i18n/                 # next-intl request config
 ├── lib/
 │   ├── auth/             # Better Auth server + client + email allowlist
@@ -52,6 +52,7 @@ src/
 │   ├── body/             # BMI, weight trend points, batch measurement schemas & history grouping
 │   ├── exercises/        # eligibility, 26-region muscles, heatmap aggregator, DAG validator
 │   ├── gamification/     # xp, level, streak, quests, achievements, 3-tier skill tree & layout (pure TS)
+│   ├── metrics/          # deterministic consistency, adherence, delta, bucket & heatmap aggregator (pure TS)
 │   ├── wellness/         # luteal-anchored cycle engine, sleep duration, wellness schemas (pure TS)
 │   ├── validation/       # onboarding & delete-account Zod schemas
 │   ├── push/             # Web Push VAPID sender & reminder eligibility logic
@@ -190,21 +191,22 @@ const WeeklyPlanSchema = z.object({
 2. **AI discovery** (when the eligible set lacks coverage for a pattern/level): `generateGroundedSearchWithFallback` (`google.tools.googleSearch({})`) across `AI_MODEL_CHAIN`, followed by structured normalization to `ExerciseCandidateSchema` (including `primaryMuscles[]` & `secondaryMuscles[]`) → dedupe by slug and name similarity → reject if equipment/difficulty out of range → save as `UNVERIFIED` with `sourceUrl`.
 3. **Anatomical Body Map** (`src/components/features/muscles/`): zero-dependency front/back Male & Female SVG models ported under MIT license from `HichamELBSI/react-native-body-highlighter`, subdivided to cover all 26 `MuscleGroup` regions using native sub-paths and namespaced SVG `<clipPath>` splits. Automatically resolves gender from `profile.sex`, renders theme-aware OKLCH fills (`Primary`, `Secondary`, `Untargeted`), hover outlines, and pointer-following tooltips.
 
-## 6. Gamification, Skill Tree & Cycle Engines
+## 6. Gamification, Skill Tree, Consistency Metrics & Cycle Engines
 
-Pure, unit‑tested TypeScript modules in `src/lib/gamification`, `src/lib/exercises`, and `src/lib/wellness`:
+Pure, unit‑tested TypeScript modules in `src/lib/gamification`, `src/lib/exercises`, `src/lib/metrics`, and `src/lib/wellness`:
 
 - **XP:** session completed = `100 × completion ratio`; side quest = `25`; weekly quest = `200`; streak bonus = `+5` per streak day (cap `50`).
 - **Level curve:** `xpForLevel(n) = 100 × n^1.5` (cumulative).
 - **Streak:** counts scheduled training days completed. Rest days are neutral. A missed training day consumes a freeze if available (1 per ISO week), otherwise resets.
 - **Quests & Achievements:** daily quest derived from today's planned session + side quests + weekly quests + deterministic achievement catalog.
 - **3-Tier DAG Skill Tree (`skill-tree.ts`, `skill-tree-layout.ts`):** evaluates `BRONZE`, `SILVER`, and `GOLD` mastery per exercise from `SetLog` history, unlocks downstream nodes via multi-parent `ExerciseEdge` prerequisites (`Locked`, `On going`, `Mastered`), and uses global-tier compaction so `Never trained` foundation exercises anchor the lowest tier cleanly.
+- **Consistency & Adherence Engine (`src/lib/metrics/consistency.ts`, `src/server/services/metrics-service.ts`):** computes `7D` / `30D` / `90D` / `All` adherence metrics from `WorkoutLog` and `Profile` with exact streak/freeze parity (`evaluateStreakHistory()`), new-account window clamping, pending-today non-penalty rules, period-over-period deltas (`7D`/`30D`/`90D`), adaptive `day` / `week` / `month` (`>16w`) bucketing, tap-inspectable heatmap cells (`≤ 12` weeks), and Mon–Sun weekday breakdown.
 - **Cycle & Wellness Engine (`cycle-engine.ts`, `cycle-and-wellness.ts`):** reconciles discrete daily period logs into `MenstrualCycle` episodes, computes luteal-anchored cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal` — no fertile window), protects configured `averagePeriodDays` / `averageCycleDays` against ongoing partial episodes, and predicts upcoming period windows.
 
 ## 7. i18n, Theming & UI Surface System
 
 - **i18n:** `next-intl` with locale‑agnostic routes (cookie/profile locale). `messages/en.json` now; `id.json` planned. AI responses use the user's locale.
-- **Theming:** `next-themes` (`attribute="class"`, `defaultTheme="system"`, `enableSystem`) wrapped in `src/components/theme-provider.tsx` with dynamic `<meta name="theme-color">` synchronization (`#fafafa` light / `#121212` dark) and `base-luma` OKLCH tokens in `src/app/globals.css`.
+- **Theming:** `next-themes` (`attribute="class"`, `defaultTheme="system"`, `enableSystem`) wrapped in `src/components/theme-provider.tsx` with dynamic `<meta name="theme-color">` synchronization (`#fafafa` light / `#121212` dark), `base-luma` OKLCH tokens, and high-contrast multi-series chart tokens (`--chart-1..5`) in `src/app/globals.css`.
 - **UI Surface System:** Unified **Card-Only UI (Style 4)** using `<Card size="sm">` outer containers (`rounded-4xl bg-card shadow-md ring-1`), borderless tonal sub-tiles (`rounded-2xl bg-muted/50`), iOS-style grouped settings rows (`ProfileSettingsTab`), 24-hour ReUI `TimePicker` (`wellness-category-cards.tsx`, `push-reminders-card.tsx`), and shared `MetricHistoryCollapsible` (`@/components/ui/collapsible`) for Weight & Batch Body Measurements (`src/lib/body/metrics.ts`).
 
 ## 8. Offline Strategy & Push Reminders

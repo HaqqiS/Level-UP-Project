@@ -2,7 +2,7 @@
 
 A gamified Progressive Web App for calisthenics training. Daily and weekly quests, XP, levels, and streaks keep you consistent, while an AI planner builds a personal program that adapts week by week and day by day.
 
-> **Status:** v2 delivered (including Card-Only UI remodel & 116-exercise catalog); **v2.5 (Dashboard Metrics)** planned next.
+> **Status:** v2.5 delivered (Consistency & Adherence Dashboard Metrics in `/profile?tab=metrics`); Later roadmap items planned next.
 > **Audience:** All levels — from never trained to advanced skill work.
 > **Scope:** Personal / family use, portfolio & learning project.
 
@@ -21,7 +21,8 @@ A gamified Progressive Web App for calisthenics training. Daily and weekly quest
 | **Quests & Gamification** | Daily/side/weekly quests, XP, levels, streaks (rest days don't break it), weekly streak freeze, and achievements — all deterministic in code, never AI. |
 | **Workout Logger** | 1–2 tap set logging (reps/duration) with offline‑first Dexie queue and idempotent sync. |
 | **Body Tracking** | Weight log + 30d/90d trend chart and batch measurements (`WAIST`, `CHEST`, `ARM`) with unified collapsible history. |
-| **Theme, PWA & Account** | Light/Dark/System themes, Apple HIG floating 4‑tab bar, Card‑Only UI, Web Push reminders (`TimePicker`), installable PWA, and permanent Delete Account. |
+| **Dashboard Metrics (v2.5)** | Consistency & Adherence analytics in `/profile?tab=metrics` (`7D`/`30D`/`90D`/`All`, period deltas, Scheduled vs Completed chart, Training Duration trend, 12-week Consistency Grid, and Mon–Sun adherence breakdown). |
+| **Theme, PWA & Account** | Light/Dark/System themes, Apple HIG floating 4‑tab bar, Card‑Only UI, Web Push reminders (`TimePicker`), installable PWA, 4-tab `/profile` hub, and permanent Delete Account. |
 
 ## Tech Stack
 
@@ -68,7 +69,7 @@ Google OAuth redirect URI: `http://localhost:3000/api/auth/callback/google`
 - [x] **v1** — Offline logging & sync (Dexie), PWA install (Serwist), weekly quests, achievements, body measurements
 - [x] **v1.5** — 4-tab route consolidation (`/today`, `/calendar`, `/exercises`, `/profile`), onboarding & streak freeze polish, Web Push reminders (VAPID + cron)
 - [x] **v2** — Relational v2 schema, period-aware onboarding & AI planner (no fertile window, H-2 reminders), borderless filterable Calendar wellness tracker, 26-region Male/Female anatomical Muscle Map, 116-exercise 3-tier DAG Skill Tree (18 zero-equipment foundations), Light/Dark/System themes, Apple HIG floating tab bar, Card-Only UI remodel, ReUI TimePicker & batch body measurements, permanent Delete Account
-- [ ] **v2.5** — Dashboard metrics *(to be designed next)*
+- [x] **v2.5** — Dashboard metrics (Consistency & Adherence analytics in `/profile?tab=metrics`)
 - [ ] **Later** — Indonesian localization (`messages/id.json` + language switcher), data export (JSON/CSV), exercise videos, social/leaderboard, production deployment
 
 *(Progress photos and AI chat coach were cancelled in [DECISIONS.md](docs/DECISIONS.md) ADR #014.)*
@@ -81,7 +82,7 @@ level-up/
 │   ├── app/            # routes (App Router)
 │   ├── components/     # ui (shadcn), reui, feature components
 │   ├── i18n/           # next-intl config
-│   ├── lib/            # auth, db, ai, body, exercises, gamification, wellness, push, offline
+│   ├── lib/            # auth, db, ai, body, exercises, gamification, metrics, wellness, push, offline
 │   ├── server/         # actions & services
 │   └── sw.ts           # service worker (Serwist)
 ├── messages/           # en.json (id.json planned)

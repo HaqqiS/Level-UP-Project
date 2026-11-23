@@ -8,7 +8,7 @@ People start calisthenics but quit because programs feel generic and progress fe
 - Make training feel like a game so users stay consistent.
 - Give every user a personal, adaptive program regardless of level.
 - Make body, wellness, and performance progress measurable and visual.
-- Work on a phone like a native app, including offline logging (v1), push reminders (v1.5), and Light/Dark/System themes (v2).
+- Work on a phone like a native app, including offline logging (v1), push reminders (v1.5), Light/Dark/System themes (v2), and Consistency Dashboard Metrics (v2.5).
 
 **Non‑goals (for now)**
 - Public scale, monetization, or social features (until Later phase).
@@ -78,9 +78,10 @@ Primary users today: the owner and family members.
   - **Sleep Duration** (24-hour **ReUI `TimePicker`** for `sleep time` – `wake up time`, auto-computed duration + sleep quality)
   - **Readiness & Notes** (energy, stress, mood tags, hydration, daily notes)
 
-### Profile & Body Tracking (`/profile`)
-- As a user, I navigate a clean 3-tab **Profile** hub (`/profile`):
+### Profile, Dashboard Metrics & Body Tracking (`/profile`)
+- As a user, I navigate a clean 4-tab **Profile** hub (`/profile`):
   - **Overview:** compact identity card + Achievements grid.
+  - **Metrics (v2.5):** Consistency & Adherence analytics with a global `7D / 30D / 90D / All` timeframe switcher, KPI summary cards with period-over-period deltas (`Adherence %`, `Sessions done`, `Training time`, `Streak & freeze`), a multi-series **Scheduled vs Completed** bar chart (adaptive daily/weekly/monthly buckets), a **Training Duration** area trend against scheduled targets, an interactive **Consistency Grid** with tap-to-inspect day details, and a Mon–Sun **Day-of-Week Adherence** breakdown highlighting strongest and most-missed training days.
   - **Body:** KPI summary, unified **Log weight** card with collapsible *Recent entries*, 30d/90d trend chart, and batch **Body measurements** (`Waist`, `Chest`, `Arm` saved together) with collapsible grouped *Measurement history*.
   - **Settings:** Appearance theme selector (`Light`/`Dark`/`System`), iOS-style grouped Preferences (Cycle & Period sheet, Push Reminders sheet), Account actions (Redo onboarding, Sign out), and a Danger Zone **Delete account** flow that permanently erases all account data (PostgreSQL cascade + browser push unsubscribe + offline IndexedDB clear).
 - Legacy route (`/body`) redirects cleanly to `/profile?tab=body`.
@@ -93,7 +94,7 @@ Primary users today: the owner and family members.
 | **v1** | Done | Offline logging + sync (Dexie) · PWA (Serwist, manifest, icons, install prompt) · weekly quests · badges/achievements · body measurements (`WAIST`, `CHEST`, `ARM`) |
 | **v1.5** | Done | Route consolidation (`Today + Plan + Log` → `/today`, `Body + Profile` → `/profile`, 4-tab Bottom Nav) · onboarding card refinement · streak freeze UI polish · Push reminders (Web Push VAPID + scheduled cron) |
 | **v2** | Done | Relational v2 schema · period-aware onboarding & AI planner (luteal-anchored cycle phases, H-2 push reminders, no fertile window) · Gemini 3.8 Flash fallback chain (`gemini-3.8-flash` → `gemini-3.1-flash-lite` → `gemini-3.5-flash-lite`) + `"Regenerate with AI"` retry · borderless filterable Calendar wellness tracker (`/calendar`) with debounced auto-save, custom items & cycle history · 26-region Male/Female MIT anatomical Muscle Map (`Logged`/`Planned`, `Today`/`Weekly`/`30d`, hover tooltip & breakdown sheet) · 116-exercise 3-tier (`Bronze`/`Silver`/`Gold`) DAG Skill Tree (18 zero-equipment foundations & global-tier compaction) · Light/Dark/System theme (`next-themes`) · Apple HIG floating tab bar & Card-Only UI remodel · ReUI `TimePicker` (Sleep Duration & Push Reminders) · batch Body Measurements & collapsible history · 3-tab `/profile` hub + permanent Delete Account |
-| **v2.5** | Planned | Dashboard metrics *(to be designed next)* |
+| **v2.5** | Done | Consistency & Adherence Dashboard Metrics in `/profile?tab=metrics` (`7D`/`30D`/`90D`/`All` timeframes, period deltas, high-contrast `--chart-1..5` palette, Scheduled vs Completed bar chart, Duration area trend, interactive 12-week Consistency Grid, Mon–Sun adherence breakdown) |
 | **Later** | Planned | Indonesian localization (`messages/id.json` + language switcher) · data export (JSON/CSV) · exercise videos · social/leaderboard · production deployment |
 
 ## 5. Acceptance Criteria
@@ -117,6 +118,9 @@ Primary users today: the owner and family members.
 - **Anatomical Muscle Map / Heatmap:** 116 seeded exercises map onto 26 relational muscle groups (`ExerciseMuscle`, 506 mappings); Male/Female front & back SVG models auto-select from `profile.sex`, render `Primary`, `Secondary`, and `Untargeted` intensities across `Logged`/`Planned` modes and `Today`/`Weekly`/`30d` scopes, and provide hover tooltips, outlines, and tap-to-inspect `MuscleBreakdownSheet`.
 - **3-Tier DAG Skill Tree:** 116 exercises (including 18 zero-equipment `Never trained` foundations), 348 `Bronze`/`Silver`/`Gold` mastery benchmarks, and 121 `ExerciseEdge` prerequisites evaluate deterministically (`Locked`, `On going`, `Mastered`) from `SetLog`; global-tier compacted pan/zoom canvas and tier list open `ExerciseDetailSheet`, while List View uses non-scrollable full-width pattern tabs.
 - **UI System, Body History & Account Lifecycle:** Unified **Card-Only UI** (`<Card size="sm">` + borderless tonal sub-tiles) and Light/Dark/System themes work across all views with exclusive theme toggle in `/profile` → `Settings`; `/profile?tab=body` batches `Waist`/`Chest`/`Arm` measurements atomically and places *Recent entries* / *Measurement history* inside shared collapsibles; permanent Delete Account requires typing `"DELETE"`, unsubscribes Web Push, deletes all user data transactionally in PostgreSQL, clears Dexie offline data, and signs out.
+
+### v2.5 (Delivered)
+- **Consistency & Adherence Dashboard (`/profile?tab=metrics`):** Zero-migration metrics computed deterministically from `WorkoutLog` and `Profile` with full streak/freeze parity against `evaluateStreakHistory()`; global `7D / 30D / 90D / All` client-side timeframe switching with new-account window clamping (`effectiveStartKey`), pending-today non-penalty semantics, `null`-guarded period-over-period deltas (`7D`/`30D`/`90D`), adaptive `day` / `week` / `month` (`>16` weeks) bucketing, null-duration exclusion from average duration, `ResizeObserver`-measured Recharts (`BarChart` + `AreaChart` with `ReferenceLine`) using high-contrast Light/Dark `--chart-1..5` tokens, tap-to-inspect Consistency Grid (up to 12 weeks), and Mon–Sun adherence breakdown identifying strongest and most-missed training days.
 
 ## 6. Health & Safety
 
