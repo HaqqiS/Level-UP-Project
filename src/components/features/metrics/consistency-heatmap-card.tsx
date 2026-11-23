@@ -113,7 +113,12 @@ export function ConsistencyHeatmapCard({
 					{clipped ? t("heatmapDescClipped") : t("heatmapDesc")}
 				</CardDescription>
 				<CardAction>
-					<Button variant="ghost" size="xs" render={<Link href="/calendar" />}>
+					<Button
+						variant="ghost"
+						size="xs"
+						nativeButton={false}
+						render={<Link href="/calendar" />}
+					>
 						<CalendarDays />
 						{t("heatmapOpenCalendar")}
 						<ChevronRight />
