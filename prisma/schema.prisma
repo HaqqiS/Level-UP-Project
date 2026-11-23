@@ -28,9 +28,14 @@ model User {
   weeklyPlans   WeeklyPlan[]
   dailyCheckins DailyCheckin[]
   workoutLogs   WorkoutLog[]
-  quests        Quest[]
-  xpEvents      XpEvent[]
-  stats         UserStats?
+  quests           Quest[]
+  xpEvents         XpEvent[]
+  stats            UserStats?
+  userAchievements UserAchievement[]
+  pushSubscriptions PushSubscription[]
+  dailyWellnessLogs DailyWellnessLog[]
+  menstrualCycles   MenstrualCycle[]
+  wellnessItems     UserWellnessItem[]
 
   @@map("user")
 }
@@ -94,6 +99,38 @@ enum ExperienceLevel {
 enum MetricType {
   WEIGHT
   HEIGHT
+  WAIST
+  CHEST
+  ARM
+}
+
+enum CycleRegularity {
+  REGULAR
+  IRREGULAR
+  UNKNOWN
+}
+
+enum WellnessItemKind {
+  SUPPLEMENT
+  MEDICATION
+}
+
+enum MuscleRole {
+  PRIMARY
+  SECONDARY
+  STABILIZER
+}
+
+enum MasteryTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum ProgressionEdgeKind {
+  PROGRESSION
+  PREREQUISITE
+  ALTERNATIVE
 }
 
 model Profile {
@@ -116,6 +153,17 @@ model Profile {
   timezone              String          @default("Asia/Jakarta")
   disclaimerAcceptedAt  DateTime?
   onboardingCompletedAt DateTime?
+  tracksPeriod          Boolean         @default(false)
+  lastPeriodStartDate   String?
+  averageCycleDays      Int             @default(28)
+  averagePeriodDays     Int             @default(5)
+  cycleRegularity       CycleRegularity @default(UNKNOWN)
+  lutealPhaseDays       Int             @default(14)
+  periodReminderEnabled  Boolean         @default(false)
+  lastPeriodReminderDate String?
+  reminderEnabled        Boolean         @default(false)
+  reminderTime          String          @default("18:00")
+  lastReminderDate      String?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
@@ -173,12 +221,23 @@ model Exercise {
   difficulty        Int
   equipment         String[]
   measure           ExerciseMeasure @default(REPS)
-  cues              String[]
-  contraindications String[]
-  progressionNextId String?
-  progressionNext   Exercise?       @relation("ExerciseProgression", fields: [progressionNextId], references: [id], onDelete: SetNull)
-  progressionPrev   Exercise[]        @relation("ExerciseProgression")
-  plannedExercises  PlannedExercise[]
+  cues                  String[]
+  contraindications     String[]
+  primaryMuscles        String[]        @default([])
+  secondaryMuscles      String[]        @default([])
+  masteryTargetSets     Int                        @default(3)
+  masteryTargetReps     Int?
+  masteryTargetSeconds  Int?
+  branchKey             String?
+  treeTier              Int                        @default(1)
+  progressionNextId     String?
+  progressionNext       Exercise?                  @relation("ExerciseProgression", fields: [progressionNextId], references: [id], onDelete: SetNull)
+  progressionPrev       Exercise[]                 @relation("ExerciseProgression")
+  muscles               ExerciseMuscle[]
+  masteryBenchmarks     ExerciseMasteryBenchmark[]
+  outgoingEdges         ExerciseEdge[]             @relation("ExerciseEdgeFrom")
+  incomingEdges         ExerciseEdge[]             @relation("ExerciseEdgeTo")
+  plannedExercises      PlannedExercise[]
   setLogs           SetLog[]
   status            ExerciseStatus    @default(VERIFIED)
   source            ExerciseSource  @default(SEED)
@@ -389,4 +448,156 @@ model UserStats {
   updatedAt        DateTime @updatedAt
 
   @@map("user_stats")
+}
+
+model Achievement {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  title       String
+  description String
+  category    String
+  xpReward    Int               @default(50)
+  users       UserAchievement[]
+  createdAt   DateTime          @default(now())
+
+  @@map("achievement")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId, unlockedAt])
+  @@map("user_achievement")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("push_subscription")
+}
+
+model DailyWellnessLog {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date                 String
+  periodFlow           String?
+  painTags             String[] @default([])
+  medications          String[] @default([])
+  supplements          String[] @default([])
+  sleepTime            String?
+  wakeTime             String?
+  sleepDurationMinutes Int?
+  notes                String?
+  painSeverity         Int?
+  painDetails          Json?
+  crampSeverity        Int?
+  sleepQuality         Int?
+  energyLevel          Int?
+  stressLevel          Int?
+  moodTags             String[] @default([])
+  hydrationMl          Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("daily_wellness_log")
+}
+
+model MenstrualCycle {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate        String
+  endDate          String?
+  cycleLengthDays  Int?
+  periodLengthDays Int?
+  isConfirmed      Boolean  @default(true)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, startDate])
+  @@index([userId, startDate])
+  @@map("menstrual_cycle")
+}
+
+model UserWellnessItem {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      WellnessItemKind
+  name      String
+  slug      String
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([userId, kind, slug])
+  @@index([userId, kind, isActive])
+  @@map("user_wellness_item")
+}
+
+model ExerciseMuscle {
+  id               String     @id @default(cuid())
+  exerciseId       String
+  exercise         Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  muscleGroup      String
+  role             MuscleRole
+  activationWeight Int
+
+  @@unique([exerciseId, muscleGroup])
+  @@index([muscleGroup, role])
+  @@map("exercise_muscle")
+}
+
+model ExerciseMasteryBenchmark {
+  id                     String      @id @default(cuid())
+  exerciseId             String
+  exercise               Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  tier                   MasteryTier
+  targetSets             Int
+  targetReps             Int?
+  targetSeconds          Int?
+  minConsecutiveSessions Int         @default(1)
+  maxRpe                 Int?
+  tempo                  String?
+  formStandard           String?
+  unlocksNext            Boolean     @default(false)
+
+  @@unique([exerciseId, tier])
+  @@index([exerciseId])
+  @@map("exercise_mastery_benchmark")
+}
+
+model ExerciseEdge {
+  id             String              @id @default(cuid())
+  fromExerciseId String
+  fromExercise   Exercise            @relation("ExerciseEdgeFrom", fields: [fromExerciseId], references: [id], onDelete: Cascade)
+  toExerciseId   String
+  toExercise     Exercise            @relation("ExerciseEdgeTo", fields: [toExerciseId], references: [id], onDelete: Cascade)
+  kind           ProgressionEdgeKind @default(PROGRESSION)
+  branchLabel    String?
+  requiredTier   MasteryTier         @default(BRONZE)
+  order          Int                 @default(0)
+
+  @@unique([fromExerciseId, toExerciseId])
+  @@index([fromExerciseId])
+  @@index([toExerciseId])
+  @@map("exercise_edge")
 }
