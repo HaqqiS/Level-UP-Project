@@ -69,6 +69,7 @@ const numberFieldInputVariants = cva(
 
 function NumberField({
   id,
+  name,
   className,
   size = "default",
   ...props
@@ -85,6 +86,7 @@ function NumberField({
         data-size={sizeValue}
         data-slot="number-field"
         id={fieldId}
+        name={name ?? `${fieldId}-value`}
         {...props}
       />
     </NumberFieldContext.Provider>
@@ -203,6 +205,8 @@ function NumberFieldInput({
       className={cn(numberFieldInputVariants({ size }), className)}
       data-slot="number-field-input"
       {...props}
+      id={props.id ?? context.fieldId}
+      name={props.name ?? context.fieldId}
     />
   )
 }

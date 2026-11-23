@@ -9,7 +9,8 @@
 		"signOut": "Sign out",
 		"error": "Something went wrong. Please try again.",
 		"pickDate": "Pick a date",
-		"clearDate": "Clear date"
+		"clearDate": "Clear date",
+		"cancel": "Cancel"
 	},
 	"nav": {
 		"ariaLabel": "Primary navigation",
@@ -180,6 +181,9 @@
 		"statusRetry": "Save failed · Retry",
 		"cycleHistoryButtonAria": "Cycle history",
 		"filterButtonAria": "Filter categories",
+		"prevMonthAria": "Previous month",
+		"nextMonthAria": "Next month",
+		"sleepLearnMoreAria": "Learn more about sleep duration",
 		"workoutDoneBadge": "Trained",
 		"scheduledDayBadge": "Training day",
 		"restDayBadge": "Rest day",
@@ -355,6 +359,7 @@
 		"frontLabel": "Front",
 		"backLabel": "Back",
 		"tapMuscleHint": "Tap any muscle on the map or pills below for breakdown.",
+		"tapMuscleHintEmpty": "Tap any muscle on the map for breakdown.",
 		"primaryLegend": "Primary",
 		"secondaryLegend": "Secondary",
 		"untargetedLegend": "Untargeted",
@@ -527,7 +532,9 @@
 		"todayBadge": "Today",
 		"restBadge": "Rest",
 		"adjustedBadge": "Adjusted",
-		"fallbackNote": "Built with rule-based defaults because AI did not respond in time.",
+		"fallbackNote": "Built with rule-based defaults because AI was temporarily unavailable.",
+		"retryAiButton": "Regenerate with AI",
+		"retryingAi": "Generating…",
 		"coachNotes": "Weekly coach notes"
 	},
 	"checkin": {
@@ -541,7 +548,7 @@
 		"submit": "Adjust today's session",
 		"submitting": "Adjusting session…",
 		"success": "Today's session has been adapted.",
-		"fallback": "AI took too long — keeping your planned session unchanged.",
+		"fallback": "AI couldn't adjust right now — keeping your planned session unchanged.",
 		"alreadyDone": "Today's check-in is already complete.",
 		"checkedInBadge": "Check-in complete"
 	},
@@ -603,7 +610,7 @@
 		"permissionDenied": "Notification permission is blocked in your browser settings. Enable notifications for this site to turn on reminders.",
 		"swInactive": "Service worker is not active yet. Run the production build (pnpm start) or install the app as a PWA.",
 		"timeLabel": "Preferred reminder time",
-		"customTimeLabel": "Custom time (24h)",
+		"customTimeLabel": "Custom time",
 		"enableButton": "Enable push reminders",
 		"enabling": "Enabling…",
 		"disableButton": "Disable",

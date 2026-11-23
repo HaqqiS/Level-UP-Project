@@ -30,7 +30,7 @@ export default function SignInPage() {
 						<GoogleSignInButton />
 					</Suspense>
 				</CardContent>
-				<CardFooter className="justify-center text-center text-xs text-muted-foreground">
+				<CardFooter className="justify-center text-center text-xs text-muted-foreground text-balance">
 					{t("auth.disclaimerNote")}
 				</CardFooter>
 			</Card>
