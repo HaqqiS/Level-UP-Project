@@ -17,6 +17,16 @@ Lightweight ADRs. Format: context → decision → consequences.
 | 011 | 2026‑11‑19 | Growing exercise library with `unverified` AI entries | Accepted |
 | 012 | 2026‑11‑19 | Gamification rules (effort‑based XP, scheduled‑day streak, freeze) | Accepted |
 | 013 | 2026‑11‑19 | MVP scope includes XP/level/streak | Accepted |
+| 014 | 2026‑11‑20 | Cancel Progress Photos & AI Chat Coach | Accepted |
+| 015 | 2026‑11‑20 | Route Consolidation into 4-Tab Bottom Navigation | Accepted |
+| 016 | 2026‑11‑20 | Period-Aware AI & Integrated Calendar Wellness Tracker | Accepted |
+| 017 | 2026‑11‑20 | Deterministic Skill Tree Mastery & Exercise Muscle Mapping | Accepted |
+| 018 | 2026‑11‑20 | Web Push Reminders via VAPID + Cron Endpoint | Accepted |
+| 019 | 2026‑11‑21 | Relational v2 Domain Schema & 3-Tier DAG Skill Tree | Accepted |
+| 020 | 2026‑11‑21 | Light/Dark/System Theming (`next-themes`) & Apple HIG Floating Tab Bar | Accepted |
+| 021 | 2026‑11‑21 | 3-Tab `/profile` Hub & Permanent Transactional Account Deletion | Accepted |
+| 022 | 2026‑11‑22 | Zero-Dependency MIT-Ported Male/Female 26-Region Anatomical Body Map | Accepted |
+| 023 | 2026‑11‑22 | Borderless Filterable `/calendar`, Non-Fertility Cycle Phases, and Ongoing-Period Guard | Accepted |
 
 ---
 
@@ -33,13 +43,43 @@ Lightweight ADRs. Format: context → decision → consequences.
 **Context:** Bilingual is desired eventually. **Decision:** next-intl from day one, EN messages only for now. **Consequences:** All UI strings must go through `t()`.
 
 ### 010 — Hybrid AI planner
-**Context:** A daily AI plan feels "AI‑powered" but costs more, while a 4‑week plan feels static. **Decision:** AI generates a 7‑day plan weekly, plus one AI adjustment per day after a check‑in (energy, soreness, time). Bounds: daily −40%/+15% volume, weekly ≤ 1 progression step per movement and ≤ 10% volume increase. Fallback to the plan or rules on failure. Chat coach in v1.5. **Consequences:** At most ~8 AI calls/user/week, so cost is negligible at personal scale.
+**Context:** A daily AI plan feels "AI‑powered" but costs more, while a 4‑week plan feels static. **Decision:** AI generates a 7‑day plan weekly, plus one AI adjustment per day after a check‑in (energy, soreness, time, and daily wellness context in v2). Bounds: daily −40%/+15% volume, weekly ≤ 1 progression step per movement and ≤ 10% volume increase. Fallback to the plan or rules on failure. **Consequences:** At most ~8 AI calls/user/week, so cost is negligible at personal scale.
 
 ### 011 — Exercise library
-**Context:** A fixed curated list limits variety, while free‑text AI exercises break validation. **Decision:** Seed from free DBs (free-exercise-db, wger). AI can discover new exercises via search grounding, normalized with Zod and stored as `unverified`. Plans reference library IDs only. `unverified` exercises show a warning and are excluded for beginners. **Consequences:** Needs a dedupe step, attribution for CC‑BY‑SA, and an eventual verify workflow.
+**Context:** A fixed curated list limits variety, while free‑text AI exercises break validation. **Decision:** Seed 98 curated calisthenics exercises across all movement patterns. AI can discover new exercises via search grounding, normalized with Zod and stored as `UNVERIFIED`. Plans reference library IDs only. `UNVERIFIED` exercises show a warning and are excluded for beginners. **Consequences:** Needs a dedupe step, attribution for CC‑BY‑SA, and an eventual verify workflow.
 
 ### 012 — Gamification
 **Context:** Must be fair across levels and not punish rest. **Decision:** XP from completion/effort; streak counts scheduled days; 1 freeze per week; all deterministic in code. **Consequences:** Stats are reproducible from logs and easy to unit test.
 
 ### 013 — MVP scope
 **Decision:** Google login, onboarding + disclaimer, weekly AI plan + daily adjustment, daily quest, logger, XP/level/streak, weight chart. Offline sync, PWA install, weekly quests, and badges move to v1.
+
+### 014 — Cancel Progress Photos & AI Chat Coach
+**Context:** Maintaining private media storage (progress photos) and free-form conversational coaching adds complexity and safety surface area with low value compared to structured wellness tracking and visual progression. **Decision:** Remove Progress Photos and AI Chat Coach from the roadmap, and drop the unused Supabase Storage dependency. **Consequences:** Simpler security/env surface; all AI interactions remain structured (`generateObject` + Zod + code-enforced safety bounds).
+
+### 015 — Route Consolidation into 4-Tab Bottom Navigation
+**Context:** Six bottom nav tabs (`/today`, `/plan`, `/log`, `/body`, `/exercises`, `/profile`) felt fragmented, especially during a workout when switching between today's quest, weekly plan, and set logger. **Decision:** Consolidate into 4 tabs: `Train` (`/today` = Today + Logger + Weekly Plan + Muscle Map), `Calendar` (`/calendar`), `Exercises` (`/exercises` = List + Skill Tree), and `Profile` (`/profile` = Overview + Body + Settings). Redirect `/plan`, `/log` → `/today` and `/body` → `/profile`. **Consequences:** Cleaner mobile navigation and room for the Calendar Wellness Tracker without crowding the bottom bar.
+
+### 016 — Period-Aware AI & Integrated Calendar Wellness Tracker
+**Context:** Female users and family members benefit from tracking menstrual cycles, pain symptoms, medications/supplements, and sleep alongside their training streak—and having workouts adapt automatically. **Decision:** Add optional menstrual cycle fields at onboarding for female users (`tracksPeriod`, `lastPeriodStartDate`, `averageCycleDays`, `averagePeriodDays`, `cycleRegularity`) and `daily_wellness_log` / `menstrual_cycle` / `user_wellness_item` tables powering `/calendar`. Feed luteal-anchored cycle phases and wellness logs into AI Weekly Plan and Daily Adjustment while strictly enforcing existing safety bounds and non-medical guardrails. Gate Period and female-specific pain tags (`Cramps`, `Ovulation`, `Breast tenderness`) behind `tracksPeriod`. **Consequences:** More personalized recovery adaptation without cluttering the UI for users who don't track periods.
+
+### 017 — Deterministic Skill Tree Mastery & Exercise Muscle Mapping
+**Context:** Users want visual feedback on which muscles they train (Muscle Map/Heatmap) and where they stand on calisthenics progressions (Skill Tree). **Decision:** Store relational muscle weights (`ExerciseMuscle`), mastery benchmarks (`ExerciseMasteryBenchmark`), and DAG edges (`ExerciseEdge`), and compute Skill Tree states (`Locked`, `On going`, `Mastered`) purely in domain code from `SetLog`. **Consequences:** Consistent with the "code counts" principle—mastery states are reproducible, testable, and automatically stay in sync with workout logs.
+
+### 018 — Web Push Reminders via VAPID + Cron Endpoint
+**Context:** Consistency improves with timely workout and upcoming-period reminders. **Decision:** Implement standard Web Push using VAPID keys through the existing Serwist Service Worker (`src/sw.ts`), storing subscriptions in `push_subscription` and triggering sends via a `CRON_SECRET`-authenticated `/api/cron/reminders` endpoint that respects `profile.timezone`, `profile.trainingDays`, and H-2 upcoming period opt-in (`periodReminderEnabled`). **Consequences:** Works natively on installed PWAs without third-party push vendors; requires a lightweight external/host cron schedule in production.
+
+### 019 — Relational v2 Domain Schema & 3-Tier DAG Skill Tree
+**Context:** Simple array columns and single-parent `progressionNextId` pointers could not represent multi-parent calisthenics prerequisites (e.g., Muscle-Up requiring both Pull-Ups and Dips), weighted 26-region muscle activation, or graduated mastery tiers. **Decision:** Introduce `MenstrualCycle`, `UserWellnessItem`, `ExerciseMuscle`, `ExerciseMasteryBenchmark` (`BRONZE`/`SILVER`/`GOLD`), and `ExerciseEdge` (`PROGRESSION`/`PREREQUISITE`/`ALTERNATIVE`) tables, backed by a 98-exercise modular seed and DAG acyclicity tests. **Consequences:** Enables accurate weighted muscle heatmaps, multi-parent Skill Tree canvas/tier views, and auditable cycle history while keeping legacy array columns populated for backward compatibility.
+
+### 020 — Light/Dark/System Theming & Apple HIG Floating Tab Bar
+**Context:** Users requested full dark mode support and a modern native-feeling mobile tab bar consistent with `base-luma` sizing. **Decision:** Adopt `next-themes` (`attribute="class"`, `defaultTheme="system"`) with dynamic `<meta name="theme-color">` sync and high-contrast `.dark` semantic tokens (including distinct hover vs pressed `Toggle`/`ToggleGroup` states), and remodel `BottomNav` into a translucent floating capsule with a `framer-motion` active pill (`useReducedMotion`-aware). **Consequences:** Consistent visual clarity across Light and Dark modes without hand-rolling theme hydration or altering compact `base-luma` control sizes.
+
+### 021 — 3-Tab `/profile` Hub & Permanent Transactional Account Deletion
+**Context:** Placing Appearance, Cycle Settings, Push Reminders, Body Tracking, and Account controls on a single `/profile` Overview tab created visual clutter, and users needed a clean way to delete their account and associated data. **Decision:** Split `/profile` into 3 tabs (`Overview`, `Body`, `Settings`), keep Appearance controls exclusively in `/profile` → `Settings`, group Cycle & Push settings into iOS-style rows opening bottom `Sheet`s, and implement `DeleteAccountDialog` + `deleteUserAccountPermanently` (requiring `"DELETE"` confirmation, deleting Better Auth `verification` tokens and `user` with PostgreSQL `ON DELETE CASCADE`, unsubscribing push, and clearing Dexie). **Consequences:** Minimalist Overview tab, centralized settings, and zero orphaned personal data on account deletion.
+
+### 022 — Zero-Dependency MIT-Ported Male/Female 26-Region Anatomical Body Map
+**Context:** `react-native-body-highlighter` has clean anatomical silhouettes for both Male and Female bodies, but cannot be installed directly in Next.js web due to `react-native` / `react-native-svg` dependencies and coarser ~16 muscle slugs. **Decision:** Port the MIT-licensed Male and Female SVG paths directly into `src/components/features/muscles/` (`body-map-male.ts`, `body-map-female.ts`) with equalized front/back viewBoxes, subdivide paths with native sub-paths and namespaced `<clipPath>` splits to preserve all 26 `MuscleGroup` regions, auto-select anatomy from `profile.sex`, and add dark-theme OKLCH fills plus pointer-following tooltips and hover outlines. **Consequences:** Zero extra npm dependencies, full 26-region heatmap fidelity for both Male and Female profiles, and full MIT license attribution preserved.
+
+### 023 — Borderless Filterable `/calendar`, Non-Fertility Cycle Phases, and Ongoing-Period Guard
+**Context:** Dense borders/outlines and competing cell fills made `/calendar` visually noisy; fertility tracking is outside app scope (non-medical); and logging 1–2 days of an ongoing period previously overwrote `profile.averagePeriodDays` and wiped out remaining predicted period days. **Decision:** Remove `isFertileWindow` across engine, UI, and i18n while keeping all 4 cycle phases (`menstrual`, `follicular`, `ovulatory`, `luteal`); remodel `MonthlyCalendarPanel` and the synced Week Strip to be borderless with day fills reserved strictly for Workout done / Streak freeze; keep `Predicted period` always visible while toggling confirmed `Period`, `Pain`, `Supplements`, and `Medication` via borderless multi-select filter badges with enlarged mini icons; guard `computeRollingCycleAverages` and `recomputeCycleLengthsAndProfileAverages` against shrinking averages from ongoing partial episodes; and hydrate Redo Onboarding from existing `Profile` + `BodyMetric` with proper `revalidatePath`. **Consequences:** High-readability calendar in both themes, reliable ongoing & future period predictions, and safe Redo Onboarding without stale cache or lost cycle dates.
