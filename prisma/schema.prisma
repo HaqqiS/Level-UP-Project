@@ -361,6 +361,17 @@ enum XpSource {
   QUEST
   STREAK
   BADGE
+  MASTERY
+}
+
+enum RankTier {
+  F
+  E
+  D
+  C
+  B
+  A
+  S
 }
 
 model WorkoutLog {
@@ -440,6 +451,9 @@ model UserStats {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   totalXp          Int      @default(0)
   level            Int      @default(1)
+  rankTier         RankTier @default(F)
+  tierLevel        Int      @default(1)
+  equippedTitleKey String?
   currentStreak    Int      @default(0)
   longestStreak    Int      @default(0)
   freezesAvailable Int      @default(1)
@@ -457,6 +471,7 @@ model Achievement {
   description String
   category    String
   xpReward    Int               @default(50)
+  titleReward String?
   users       UserAchievement[]
   createdAt   DateTime          @default(now())
 
