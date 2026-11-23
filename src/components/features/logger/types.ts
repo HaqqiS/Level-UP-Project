@@ -4,6 +4,7 @@ export type LoggedSetView = {
 	setNumber: number;
 	reps: number | null;
 	seconds: number | null;
+	pending?: boolean;
 };
 
 export type WorkoutLogView = {

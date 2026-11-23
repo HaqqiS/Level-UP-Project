@@ -5,11 +5,20 @@ import {
 	computeSessionXp,
 	computeStreakBonusXp,
 } from "@/lib/gamification/engine";
-import { recalculateAndSaveUserStats } from "@/server/services/gamification-service";
+import {
+	type OfflineSyncBatch,
+	OfflineSyncBatchSchema,
+} from "@/lib/offline/queue-logic";
+import {
+	ensureTodayQuestsAndStats,
+	recalculateAndSaveUserStats,
+	syncAchievementsForUser,
+} from "@/server/services/gamification-service";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 import { getLocalDateKey } from "@/server/services/weekly-plan-service";
 
 export const LogSetInputSchema = z.object({
+	clientId: z.uuid().optional(),
 	plannedSessionId: z.string().min(1).optional(),
 	exerciseId: z.string().min(1),
 	setNumber: z.number().int().min(1).max(10),
@@ -120,8 +129,11 @@ export async function finalizeWorkoutSession(
 			},
 			update: {},
 		});
-		await recalculateAndSaveUserStats(userId);
 	}
+
+	const refreshedStats = await recalculateAndSaveUserStats(userId);
+	await syncAchievementsForUser(userId, refreshedStats);
+	await ensureTodayQuestsAndStats(userId);
 
 	return { ok: true, xpEarned: sessionXp + streakBonus };
 }
@@ -186,6 +198,7 @@ export async function logExerciseSet(params: {
 			},
 		},
 		create: {
+			...(data.clientId ? { clientId: data.clientId } : {}),
 			workoutLogId: workoutLog.id,
 			exerciseId: data.exerciseId,
 			setNumber: data.setNumber,
@@ -204,18 +217,6 @@ export async function logExerciseSet(params: {
 	const plannedSetsCount =
 		plannedSession?.exercises.reduce((sum, ex) => sum + ex.sets, 0) ?? 0;
 
-	const mainQuest = await db.quest.findUnique({
-		where: {
-			userId_key_date: { userId, key: "daily-main", date: todayKey },
-		},
-	});
-	if (mainQuest && mainQuest.status === "PENDING") {
-		await db.quest.update({
-			where: { id: mainQuest.id },
-			data: { progress: Math.min(mainQuest.target, totalSetsLogged) },
-		});
-	}
-
 	if (plannedSetsCount > 0 && totalSetsLogged >= plannedSetsCount) {
 		const finalized = await finalizeWorkoutSession(userId, workoutLog.id);
 		return {
@@ -226,10 +227,155 @@ export async function logExerciseSet(params: {
 		};
 	}
 
+	await ensureTodayQuestsAndStats(userId);
 	return {
 		ok: true,
 		workoutLogId: workoutLog.id,
 		sessionCompleted: Boolean(workoutLog.completedAt),
 		xpEarned: 0,
+	};
+}
+
+export type SyncBatchResult =
+	| {
+			ok: true;
+			syncedClientIds: string[];
+			syncedFinishedDateKeys: string[];
+			xpEarned: number;
+	  }
+	| { ok: false; reason: "invalid" };
+
+export async function syncOfflineWorkoutBatch(params: {
+	userId: string;
+	batch: OfflineSyncBatch;
+}): Promise<SyncBatchResult> {
+	const parsed = OfflineSyncBatchSchema.safeParse(params.batch);
+	if (!parsed.success) {
+		return { ok: false, reason: "invalid" };
+	}
+
+	const { userId } = params;
+	const profile = await db.profile.findUnique({ where: { userId } });
+	assertCanGeneratePlan(profile);
+
+	const syncedClientIds: string[] = [];
+	const touchedWorkoutLogIds = new Map<string, string>(); // dateKey -> workoutLogId
+
+	for (const set of parsed.data.sets) {
+		const [exercise, existingByClientId, plannedSession] = await Promise.all([
+			db.exercise.findUnique({
+				where: { id: set.exerciseId },
+				select: { id: true },
+			}),
+			db.setLog.findUnique({
+				where: { clientId: set.clientId },
+				include: { workoutLog: { select: { userId: true } } },
+			}),
+			set.plannedSessionId
+				? db.plannedSession.findUnique({
+						where: { id: set.plannedSessionId },
+						select: { id: true, weeklyPlan: { select: { userId: true } } },
+					})
+				: Promise.resolve(null),
+		]);
+
+		if (!exercise) continue;
+		if (existingByClientId && existingByClientId.workoutLog.userId === userId) {
+			syncedClientIds.push(set.clientId);
+			continue;
+		}
+
+		const validSessionId =
+			plannedSession && plannedSession.weeklyPlan.userId === userId
+				? plannedSession.id
+				: null;
+
+		const workoutLog = await db.workoutLog.upsert({
+			where: { userId_date: { userId, date: set.dateKey } },
+			create: {
+				userId,
+				date: set.dateKey,
+				plannedSessionId: validSessionId,
+			},
+			update: validSessionId ? { plannedSessionId: validSessionId } : {},
+		});
+
+		await db.setLog.upsert({
+			where: {
+				workoutLogId_exerciseId_setNumber: {
+					workoutLogId: workoutLog.id,
+					exerciseId: set.exerciseId,
+					setNumber: set.setNumber,
+				},
+			},
+			create: {
+				clientId: set.clientId,
+				workoutLogId: workoutLog.id,
+				exerciseId: set.exerciseId,
+				setNumber: set.setNumber,
+				reps: set.reps ?? null,
+				seconds: set.seconds ?? null,
+			},
+			update: {
+				reps: set.reps ?? null,
+				seconds: set.seconds ?? null,
+			},
+		});
+
+		syncedClientIds.push(set.clientId);
+		touchedWorkoutLogIds.set(set.dateKey, workoutLog.id);
+	}
+
+	let totalXpEarned = 0;
+	const syncedFinishedDateKeys: string[] = [];
+
+	// Check explicit finishes + auto-finish dates where all planned sets are logged.
+	const datesToCheck = new Set<string>([
+		...parsed.data.finishedDateKeys,
+		...touchedWorkoutLogIds.keys(),
+	]);
+
+	for (const dateKey of datesToCheck) {
+		const log = await db.workoutLog.findUnique({
+			where: { userId_date: { userId, date: dateKey } },
+			include: {
+				sets: { select: { id: true } },
+				plannedSession: {
+					include: { exercises: { select: { sets: true } } },
+				},
+			},
+		});
+
+		if (!log) continue;
+
+		const explicitFinish = parsed.data.finishedDateKeys.includes(dateKey);
+		const plannedSetsCount =
+			log.plannedSession?.exercises.reduce((sum, e) => sum + e.sets, 0) ?? 0;
+		const autoComplete =
+			plannedSetsCount > 0 && log.sets.length >= plannedSetsCount;
+
+		if (
+			(explicitFinish || autoComplete) &&
+			log.sets.length > 0 &&
+			!log.completedAt
+		) {
+			const finalized = await finalizeWorkoutSession(userId, log.id);
+			if (finalized.ok) {
+				totalXpEarned += finalized.xpEarned;
+			}
+		}
+
+		if (explicitFinish) {
+			syncedFinishedDateKeys.push(dateKey);
+		}
+	}
+
+	await ensureTodayQuestsAndStats(userId);
+
+	return {
+		ok: true,
+		syncedClientIds,
+		syncedFinishedDateKeys,
+		xpEarned: totalXpEarned,
 	};
 }

@@ -37,6 +37,9 @@ export function WeeklyPlanView({
 	const todaySession = plan.sessions.find(
 		(s) => s.dayOfWeek === todayDayOfWeek,
 	);
+	const [openItems, setOpenItems] = useState<string[]>(
+		todaySession ? [todaySession.id] : [],
+	);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -56,7 +59,8 @@ export function WeeklyPlanView({
 
 			<Accordion
 				multiple={false}
-				defaultValue={todaySession ? [todaySession.id] : []}
+				value={openItems}
+				onValueChange={(value) => setOpenItems(value.map(String))}
 			>
 				{plan.sessions.map((session) => {
 					const isToday = session.dayOfWeek === todayDayOfWeek;

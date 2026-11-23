@@ -1,7 +1,7 @@
 "use client";
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { PlannedExerciseView } from "@/components/features/plan/types";
 import { Badge } from "@/components/reui/badge";
@@ -21,17 +21,21 @@ import {
 	ItemGroup,
 	ItemTitle,
 } from "@/components/ui/item";
-import { logSetAction } from "@/server/actions/workout";
 import type { LoggedSetView } from "./types";
 
 export function ExerciseSetLogger({
 	plannedExercise,
-	plannedSessionId,
 	loggedSets,
+	onLogSet,
 }: {
 	plannedExercise: PlannedExerciseView;
-	plannedSessionId: string;
 	loggedSets: LoggedSetView[];
+	onLogSet: (input: {
+		exerciseId: string;
+		setNumber: number;
+		reps: number | null;
+		seconds: number | null;
+	}) => Promise<{ synced: boolean; xpEarned: number }>;
 }) {
 	const t = useTranslations();
 	const isTimed = plannedExercise.exercise.measure === "SECONDS";
@@ -40,31 +44,33 @@ export function ExerciseSetLogger({
 		: (plannedExercise.targetReps ?? 8);
 
 	const [amount, setAmount] = useState<number>(defaultAmount);
-	const [pending, startTransition] = useTransition();
+	const [submitting, setSubmitting] = useState(false);
 
 	const nextSetNumber = Math.min(10, loggedSets.length + 1);
 	const canLogMore = loggedSets.length < 10;
 
-	function handleLogSet() {
-		startTransition(async () => {
-			const res = await logSetAction({
-				plannedSessionId,
+	async function handleLogSet() {
+		setSubmitting(true);
+		try {
+			const res = await onLogSet({
 				exerciseId: plannedExercise.exercise.id,
 				setNumber: nextSetNumber,
 				reps: isTimed ? null : amount,
 				seconds: isTimed ? amount : null,
 			});
 
-			if (!res.ok) {
-				toast.error(t("common.error"));
-				return;
-			}
-			if (res.sessionCompleted && res.xpEarned > 0) {
+			if (!res.synced) {
+				toast.success(t("logger.setSavedOffline"));
+			} else if (res.xpEarned > 0) {
 				toast.success(t("logger.sessionCompletedToast", { xp: res.xpEarned }));
 			} else {
 				toast.success(t("logger.setSaved"));
 			}
-		});
+		} catch {
+			toast.error(t("common.error"));
+		} finally {
+			setSubmitting(false);
+		}
 	}
 
 	return (
@@ -79,6 +85,11 @@ export function ExerciseSetLogger({
 								</ItemTitle>
 							</ItemContent>
 							<ItemActions>
+								{set.pending && (
+									<Badge variant="warning-light" size="xs">
+										{t("logger.setPendingBadge")}
+									</Badge>
+								)}
 								<Badge variant="success-light" size="sm">
 									<Check />
 									{set.seconds
@@ -113,9 +124,9 @@ export function ExerciseSetLogger({
 						</NumberFieldGroup>
 					</NumberField>
 
-					<Button disabled={pending} onClick={handleLogSet}>
-						{pending && <Loader2 className="animate-spin" />}
-						{pending
+					<Button type="button" disabled={submitting} onClick={handleLogSet}>
+						{submitting && <Loader2 className="animate-spin" />}
+						{submitting
 							? t("logger.loggingSet")
 							: t("logger.logSet", { num: nextSetNumber })}
 					</Button>

@@ -26,12 +26,16 @@ export function TodaySessionCard({
 	defaultMinutes,
 	isCompleted,
 	hasStarted,
+	onOpenLogger,
+	onOpenPlan,
 }: {
 	session: PlannedSessionView;
 	allExercises: readonly ExerciseItem[];
 	defaultMinutes: number;
 	isCompleted?: boolean;
 	hasStarted?: boolean;
+	onOpenLogger?: () => void;
+	onOpenPlan?: () => void;
 }) {
 	const t = useTranslations();
 	const [selectedExercise, setSelectedExercise] = useState<ExerciseItem | null>(
@@ -56,15 +60,22 @@ export function TodaySessionCard({
 					</div>
 				</FramePanel>
 				<FrameFooter>
-					<Button
-						variant="outline"
-						className="w-full"
-						nativeButton={false}
-						render={<Link href="/plan" />}
-					>
-						<Calendar />
-						{t("today.viewWeek")}
-					</Button>
+					{onOpenPlan ? (
+						<Button variant="outline" className="w-full" onClick={onOpenPlan}>
+							<Calendar />
+							{t("today.viewWeek")}
+						</Button>
+					) : (
+						<Button
+							variant="outline"
+							className="w-full"
+							nativeButton={false}
+							render={<Link href="/today?tab=plan" />}
+						>
+							<Calendar />
+							{t("today.viewWeek")}
+						</Button>
+					)}
 				</FrameFooter>
 			</Frame>
 		);
@@ -156,13 +167,23 @@ export function TodaySessionCard({
 				))}
 
 				<FrameFooter>
-					<Button
-						className="w-full"
-						nativeButton={false}
-						render={<Link href="/log" />}
-					>
-						{hasStarted ? t("today.continueWorkout") : t("today.startWorkout")}
-					</Button>
+					{onOpenLogger ? (
+						<Button className="w-full" onClick={onOpenLogger}>
+							{hasStarted
+								? t("today.continueWorkout")
+								: t("today.startWorkout")}
+						</Button>
+					) : (
+						<Button
+							className="w-full"
+							nativeButton={false}
+							render={<Link href="/today?tab=log" />}
+						>
+							{hasStarted
+								? t("today.continueWorkout")
+								: t("today.startWorkout")}
+						</Button>
+					)}
 					{!session.dailyCheckin && !isCompleted && (
 						<DailyCheckinSheet
 							sessionId={session.id}

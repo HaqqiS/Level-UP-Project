@@ -16,7 +16,7 @@ export async function generateCurrentWeekPlanAction(): Promise<GeneratePlanResul
 	const result = await generateWeeklyPlanForUser(session.user.id);
 	if (result.ok) {
 		revalidatePath("/today");
-		revalidatePath("/plan");
+		revalidatePath("/calendar");
 	}
 	return result;
 }
@@ -31,7 +31,7 @@ export async function submitDailyCheckinAction(
 	});
 	if (result.ok) {
 		revalidatePath("/today");
-		revalidatePath("/plan");
+		revalidatePath("/calendar");
 	}
 	return result;
 }
