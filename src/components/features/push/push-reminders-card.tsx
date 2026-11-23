@@ -6,16 +6,24 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import {
-	Frame,
-	FrameDescription,
-	FrameFooter,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
+	TimePicker,
+	TimePickerColumns,
+	TimePickerConfirm,
+	TimePickerContent,
+	TimePickerFooter,
+	TimePickerNow,
+	TimePickerTrigger,
+} from "@/components/reui/time-picker";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { REMINDER_TIME_PRESETS } from "@/lib/push/reminder-logic";
 import {
@@ -259,17 +267,38 @@ export function PushRemindersCard({
 				</Field>
 
 				<Field>
-					<FieldLabel htmlFor="reminder-custom-time">
+					<FieldLabel
+						id="reminder-custom-time-label"
+						htmlFor="reminder-custom-time"
+					>
 						{t("reminders.customTimeLabel")}
 					</FieldLabel>
 					<div className="flex items-center gap-2">
-						<Input
+						<TimePicker
 							id="reminder-custom-time"
-							name="reminderTime"
-							type="time"
+							aria-labelledby="reminder-custom-time-label"
+							hourCycle={24}
+							granularity="minute"
+							disabled={pending}
 							value={reminderTime}
-							onChange={(e) => setReminderTime(e.target.value)}
-						/>
+							onValueChange={(next) => {
+								if (next) {
+									setReminderTime(next);
+								}
+							}}
+						>
+							<TimePickerTrigger
+								className="min-w-0 flex-1"
+								placeholder={t("reminders.timePlaceholder")}
+							/>
+							<TimePickerContent>
+								<TimePickerColumns />
+								<TimePickerFooter>
+									<TimePickerNow />
+									<TimePickerConfirm />
+								</TimePickerFooter>
+							</TimePickerContent>
+						</TimePicker>
 						{enabled && (
 							<Button
 								type="button"
@@ -331,30 +360,30 @@ export function PushRemindersCard({
 	}
 
 	return (
-		<Frame>
-			<FrameHeader>
+		<Card size="sm">
+			<CardHeader>
 				<div className="flex flex-wrap items-center justify-between gap-2">
-					<FrameTitle>{t("reminders.title")}</FrameTitle>
+					<CardTitle>{t("reminders.title")}</CardTitle>
 					<Badge variant={enabled ? "success-light" : "secondary"} size="sm">
 						{enabled
 							? t("reminders.enabledBadge")
 							: t("reminders.disabledBadge")}
 					</Badge>
 				</div>
-				<FrameDescription>{t("reminders.description")}</FrameDescription>
-			</FrameHeader>
+				<CardDescription>{t("reminders.description")}</CardDescription>
+			</CardHeader>
 
 			{statusAlert ? (
-				<FramePanel>{statusAlert}</FramePanel>
+				<CardContent>{statusAlert}</CardContent>
 			) : (
 				<>
-					<FramePanel className="space-y-4">{settingsFields}</FramePanel>
+					<CardContent className="space-y-4">{settingsFields}</CardContent>
 
-					<FrameFooter className="flex-row flex-wrap gap-2">
+					<CardFooter className="flex-row flex-wrap gap-2">
 						{actionButtons}
-					</FrameFooter>
+					</CardFooter>
 				</>
 			)}
-		</Frame>
+		</Card>
 	);
 }

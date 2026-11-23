@@ -6,12 +6,12 @@ import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 import { Badge } from "@/components/reui/badge";
 import {
-	Frame,
-	FrameDescription,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const emptySubscribe = () => () => {};
@@ -26,19 +26,19 @@ export function AppearanceCard() {
 	);
 
 	return (
-		<Frame spacing="sm">
-			<FrameHeader>
+		<Card size="sm">
+			<CardHeader>
 				<div className="flex items-center justify-between gap-2">
-					<FrameTitle>{t("title")}</FrameTitle>
+					<CardTitle>{t("title")}</CardTitle>
 					{mounted && resolvedTheme && (
 						<Badge variant="secondary" size="sm">
 							{resolvedTheme === "dark" ? t("dark") : t("light")}
 						</Badge>
 					)}
 				</div>
-				<FrameDescription>{t("description")}</FrameDescription>
-			</FrameHeader>
-			<FramePanel>
+				<CardDescription>{t("description")}</CardDescription>
+			</CardHeader>
+			<CardContent>
 				<ToggleGroup
 					variant="outline"
 					size="sm"
@@ -64,7 +64,7 @@ export function AppearanceCard() {
 						<span>{t("system")}</span>
 					</ToggleGroupItem>
 				</ToggleGroup>
-			</FramePanel>
-		</Frame>
+			</CardContent>
+		</Card>
 	);
 }

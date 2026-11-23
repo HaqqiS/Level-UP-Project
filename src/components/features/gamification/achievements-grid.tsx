@@ -2,14 +2,14 @@
 import { Award, Dumbbell, Flame, Lock, Scale, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameDescription,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import type { AchievementItemView } from "./types";
 
 function CategoryIcon({
@@ -47,43 +47,50 @@ export function AchievementsGrid({
 	).length;
 
 	return (
-		<Frame spacing="sm">
-			<FrameHeader>
-				<FrameTitle>{t("title")}</FrameTitle>
-				<FrameDescription>
+		<Card size="sm">
+			<CardHeader>
+				<CardTitle>{t("title")}</CardTitle>
+				<CardDescription>
 					{t("description", {
 						unlocked: unlockedCount,
 						total: achievements.length,
 					})}
-				</FrameDescription>
-			</FrameHeader>
-			<div className="grid grid-cols-2 gap-1.5">
-				{achievements.map((badge) => {
-					const unlocked = badge.unlockedAt !== null;
-					return (
-						<FramePanel
-							key={badge.key}
-							className="flex flex-col justify-between gap-2"
-						>
-							<div className="flex items-start justify-between gap-2">
-								<IconTile variant={unlocked ? "soft" : "outline"} size="sm">
-									<CategoryIcon category={badge.category} unlocked={unlocked} />
-								</IconTile>
-								<Badge
-									variant={unlocked ? "success-light" : "outline"}
-									size="xs"
-								>
-									{t("xpReward", { xp: badge.xpReward })}
-								</Badge>
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div className="grid grid-cols-2 gap-2">
+					{achievements.map((badge) => {
+						const unlocked = badge.unlockedAt !== null;
+						return (
+							<div
+								key={badge.key}
+								className="flex flex-col justify-between gap-2 rounded-2xl bg-muted/50 p-3"
+							>
+								<div className="flex items-center justify-between gap-2">
+									<IconTile variant={unlocked ? "soft" : "outline"} size="sm">
+										<CategoryIcon
+											category={badge.category}
+											unlocked={unlocked}
+										/>
+									</IconTile>
+									<Badge
+										variant={unlocked ? "success-light" : "outline"}
+										size="xs"
+									>
+										{t("xpReward", { xp: badge.xpReward })}
+									</Badge>
+								</div>
+								<div className="space-y-0.5">
+									<p className="text-sm font-semibold">{badge.title}</p>
+									<p className="text-xs text-muted-foreground">
+										{badge.description}
+									</p>
+								</div>
 							</div>
-							<div className="space-y-0.5">
-								<FrameTitle>{badge.title}</FrameTitle>
-								<FrameDescription>{badge.description}</FrameDescription>
-							</div>
-						</FramePanel>
-					);
-				})}
-			</div>
-		</Frame>
+						);
+					})}
+				</div>
+			</CardContent>
+		</Card>
 	);
 }

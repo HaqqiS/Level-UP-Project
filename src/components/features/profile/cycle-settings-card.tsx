@@ -7,14 +7,6 @@ import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { DatePicker } from "@/components/reui/date-picker";
 import {
-	Frame,
-	FrameDescription,
-	FrameFooter,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
-import {
 	NumberField,
 	NumberFieldDecrement,
 	NumberFieldGroup,
@@ -29,6 +21,14 @@ import {
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Field,
@@ -269,9 +269,9 @@ export function CycleSettingsCard({
 										<NumberFieldIncrement />
 									</NumberFieldGroup>
 								</NumberField>
-								<FrameDescription>
+								<p className="text-xs text-muted-foreground">
 									{t("profile.cycleSettings.lutealDaysHint")}
-								</FrameDescription>
+								</p>
 							</AccordionContent>
 						</AccordionItem>
 					</Accordion>
@@ -299,13 +299,13 @@ export function CycleSettingsCard({
 	}
 
 	return (
-		<Frame>
-			<FrameHeader>
+		<Card size="sm">
+			<CardHeader>
 				<div className="flex flex-wrap items-center justify-between gap-2">
-					<FrameTitle className="flex items-center gap-2">
+					<CardTitle className="flex items-center gap-2">
 						<CalendarHeart className="size-4 text-primary" />
 						{t("profile.cycleSettings.title")}
-					</FrameTitle>
+					</CardTitle>
 					<Badge
 						variant={tracksPeriod ? "success-light" : "secondary"}
 						size="sm"
@@ -315,14 +315,16 @@ export function CycleSettingsCard({
 							: t("profile.cycleSettings.disabledBadge")}
 					</Badge>
 				</div>
-				<FrameDescription>
+				<CardDescription>
 					{t("profile.cycleSettings.description")}
-				</FrameDescription>
-			</FrameHeader>
+				</CardDescription>
+			</CardHeader>
 
-			<FramePanel className="space-y-4">{fieldsContent}</FramePanel>
+			<CardContent className="space-y-4">{fieldsContent}</CardContent>
 
-			<FrameFooter>{saveButton}</FrameFooter>
-		</Frame>
+			<CardFooter className="flex-col items-stretch gap-2">
+				{saveButton}
+			</CardFooter>
+		</Card>
 	);
 }

@@ -17,13 +17,8 @@ import { CycleSettingsCard } from "@/components/features/profile/cycle-settings-
 import { DeleteAccountDialog } from "@/components/features/profile/delete-account-dialog";
 import { PushRemindersCard } from "@/components/features/push/push-reminders-card";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Sheet,
 	SheetContent,
@@ -99,16 +94,16 @@ export function ProfileSettingsTab({
 			<div className="flex flex-col gap-4">
 				<AppearanceCard />
 
-				<Frame spacing="sm">
-					<FrameHeader>
-						<FrameTitle>{t("profile.settings.preferencesTitle")}</FrameTitle>
-					</FrameHeader>
-					<FramePanel className="divide-y divide-border/70 px-0 py-0">
+				<Card size="sm" className="gap-2">
+					<CardHeader>
+						<CardTitle>{t("profile.settings.preferencesTitle")}</CardTitle>
+					</CardHeader>
+					<CardContent className="divide-y divide-border/60 px-0">
 						{isFemale && (
 							<button
 								type="button"
 								onClick={() => setActiveSheet("cycle")}
-								className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
+								className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
 							>
 								<div className="flex min-w-0 flex-1 items-center gap-3">
 									<IconTile variant="soft" size="sm">
@@ -140,7 +135,7 @@ export function ProfileSettingsTab({
 						<button
 							type="button"
 							onClick={() => setActiveSheet("reminders")}
-							className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
+							className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
 						>
 							<div className="flex min-w-0 flex-1 items-center gap-3">
 								<IconTile variant="soft" size="sm">
@@ -167,17 +162,17 @@ export function ProfileSettingsTab({
 								<ChevronRight className="size-4 text-muted-foreground" />
 							</div>
 						</button>
-					</FramePanel>
-				</Frame>
+					</CardContent>
+				</Card>
 
-				<Frame spacing="sm">
-					<FrameHeader>
-						<FrameTitle>{t("profile.settings.accountTitle")}</FrameTitle>
-					</FrameHeader>
-					<FramePanel className="divide-y divide-border/70 px-0 py-0">
+				<Card size="sm" className="gap-2">
+					<CardHeader>
+						<CardTitle>{t("profile.settings.accountTitle")}</CardTitle>
+					</CardHeader>
+					<CardContent className="divide-y divide-border/60 px-0">
 						<Link
 							href="/onboarding"
-							className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
+							className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
 						>
 							<div className="flex min-w-0 flex-1 items-center gap-3">
 								<IconTile variant="soft" size="sm">
@@ -199,7 +194,7 @@ export function ProfileSettingsTab({
 							type="button"
 							disabled={signingOut}
 							onClick={handleSignOut}
-							className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/45 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
+							className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/45 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40"
 						>
 							<div className="flex min-w-0 flex-1 items-center gap-3">
 								<IconTile variant="soft" size="sm">
@@ -220,20 +215,20 @@ export function ProfileSettingsTab({
 								<ChevronRight className="size-4 shrink-0 text-muted-foreground" />
 							)}
 						</button>
-					</FramePanel>
-				</Frame>
+					</CardContent>
+				</Card>
 
-				<Frame spacing="sm">
-					<FrameHeader>
-						<FrameTitle className="text-destructive">
+				<Card size="sm" className="gap-2">
+					<CardHeader>
+						<CardTitle className="text-destructive">
 							{t("profile.settings.dangerTitle")}
-						</FrameTitle>
-					</FrameHeader>
-					<FramePanel className="px-0 py-0">
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="divide-y divide-border/60 px-0">
 						<button
 							type="button"
 							onClick={() => setDeleteDialogOpen(true)}
-							className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-destructive/30"
+							className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-destructive/30"
 						>
 							<div className="flex min-w-0 flex-1 items-center gap-3">
 								<div className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-destructive/20 bg-destructive/10 text-destructive">
@@ -250,8 +245,8 @@ export function ProfileSettingsTab({
 							</div>
 							<ChevronRight className="size-4 shrink-0 text-destructive/70" />
 						</button>
-					</FramePanel>
-				</Frame>
+					</CardContent>
+				</Card>
 			</div>
 
 			{isFemale && (
