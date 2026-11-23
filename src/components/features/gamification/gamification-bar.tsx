@@ -2,13 +2,8 @@
 import { Flame, Shield, Trophy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameDescription,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Progress,
 	ProgressLabel,
@@ -21,8 +16,8 @@ export function GamificationBar({ stats }: { stats: GamificationSummary }) {
 	const freezeReady = stats.freezesAvailable > 0 && !stats.freezeUsedThisWeek;
 
 	return (
-		<Frame>
-			<FramePanel className="space-y-3">
+		<Card size="sm">
+			<CardContent className="space-y-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div className="flex flex-wrap items-center gap-2">
 						<Badge variant="primary-light">
@@ -57,28 +52,32 @@ export function GamificationBar({ stats }: { stats: GamificationSummary }) {
 					</ProgressLabel>
 					<ProgressValue />
 				</Progress>
-			</FramePanel>
 
-			<FramePanel className="flex items-start justify-between gap-3">
-				<div className="flex min-w-0 items-start gap-3">
-					<IconTile variant="soft" size="sm">
-						<Shield />
-					</IconTile>
-					<div className="min-w-0 space-y-0.5">
-						<FrameTitle>{t("freezeTitle")}</FrameTitle>
-						<FrameDescription>
-							{freezeReady
-								? t("freezeReadyDescription")
-								: stats.lastFrozenDate
-									? t("freezeUsedOnDate", { date: stats.lastFrozenDate })
-									: t("freezeUsedDescription")}
-						</FrameDescription>
+				<div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/50 p-3">
+					<div className="flex min-w-0 flex-1 items-center gap-3">
+						<IconTile variant="soft" size="sm">
+							<Shield />
+						</IconTile>
+						<div className="min-w-0 space-y-0.5">
+							<p className="text-sm font-semibold">{t("freezeTitle")}</p>
+							<p className="text-xs text-muted-foreground">
+								{freezeReady
+									? t("freezeReadyDescription")
+									: stats.lastFrozenDate
+										? t("freezeUsedOnDate", { date: stats.lastFrozenDate })
+										: t("freezeUsedDescription")}
+							</p>
+						</div>
 					</div>
+					<Badge
+						variant={freezeReady ? "info-light" : "warning-light"}
+						size="sm"
+						className="shrink-0"
+					>
+						{freezeReady ? t("freezeReadyBadge") : t("freezeUsedBadge")}
+					</Badge>
 				</div>
-				<Badge variant={freezeReady ? "info-light" : "warning-light"} size="sm">
-					{freezeReady ? t("freezeReadyBadge") : t("freezeUsedBadge")}
-				</Badge>
-			</FramePanel>
-		</Frame>
+			</CardContent>
+		</Card>
 	);
 }

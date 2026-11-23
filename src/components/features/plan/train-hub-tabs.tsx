@@ -8,8 +8,8 @@ import type { QuestItemView } from "@/components/features/gamification/types";
 import type { WorkoutLogView } from "@/components/features/logger/types";
 import { WorkoutLogger } from "@/components/features/logger/workout-logger";
 import type { BodyMapGender } from "@/components/features/muscles/body-map-paths";
-import { Frame, FramePanel } from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Empty,
 	EmptyContent,
@@ -80,8 +80,8 @@ export function TrainHubTabs({
 
 			<TabsContent value="today" className="flex flex-col gap-4">
 				{!todaySession ? (
-					<Frame>
-						<FramePanel>
+					<Card size="sm">
+						<CardContent>
 							<Empty>
 								<EmptyHeader>
 									<EmptyMedia variant="icon">
@@ -94,8 +94,8 @@ export function TrainHubTabs({
 									<GeneratePlanButton />
 								</EmptyContent>
 							</Empty>
-						</FramePanel>
-					</Frame>
+						</CardContent>
+					</Card>
 				) : (
 					<TodaySessionCard
 						session={todaySession}
@@ -120,8 +120,8 @@ export function TrainHubTabs({
 
 			<TabsContent value="log" className="flex flex-col gap-4">
 				{!todaySession || todaySession.isRest ? (
-					<Frame>
-						<FramePanel>
+					<Card size="sm">
+						<CardContent>
 							<Empty>
 								<EmptyHeader>
 									<EmptyMedia variant="icon">
@@ -142,8 +142,8 @@ export function TrainHubTabs({
 									)}
 								</EmptyContent>
 							</Empty>
-						</FramePanel>
-					</Frame>
+						</CardContent>
+					</Card>
 				) : (
 					<WorkoutLogger
 						dateKey={todayKey}
@@ -155,8 +155,8 @@ export function TrainHubTabs({
 
 			<TabsContent value="plan" className="flex flex-col gap-4">
 				{!plan ? (
-					<Frame>
-						<FramePanel>
+					<Card size="sm">
+						<CardContent>
 							<Empty>
 								<EmptyHeader>
 									<EmptyMedia variant="icon">
@@ -171,8 +171,8 @@ export function TrainHubTabs({
 									<GeneratePlanButton />
 								</EmptyContent>
 							</Empty>
-						</FramePanel>
-					</Frame>
+						</CardContent>
+					</Card>
 				) : (
 					<WeeklyPlanView
 						plan={plan}

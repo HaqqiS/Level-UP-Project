@@ -7,12 +7,7 @@ import {
 } from "@/components/features/muscles/anatomical-body-map";
 import type { BodyMapGender } from "@/components/features/muscles/body-map-paths";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
 	formatHeatmapDuration,
@@ -68,12 +63,12 @@ export function MuscleHeatmapCard({
 
 	return (
 		<>
-			<Frame spacing="sm">
-				<FrameHeader>
+			<Card size="sm">
+				<CardHeader>
 					<div className="flex flex-wrap items-center justify-between gap-2">
-						<FrameTitle>
+						<CardTitle>
 							{mode === "logged" ? t("title") : t("plannedTitle")}
-						</FrameTitle>
+						</CardTitle>
 						<ToggleGroup
 							variant="outline"
 							size="sm"
@@ -125,9 +120,9 @@ export function MuscleHeatmapCard({
 							</ToggleGroupItem>
 						)}
 					</ToggleGroup>
-				</FrameHeader>
+				</CardHeader>
 
-				<FramePanel className="space-y-4">
+				<CardContent className="space-y-4">
 					<div className="grid grid-cols-4 gap-2 text-center">
 						<div>
 							<p className="text-xs text-muted-foreground">
@@ -234,8 +229,8 @@ export function MuscleHeatmapCard({
 							))}
 						</div>
 					)}
-				</FramePanel>
-			</Frame>
+				</CardContent>
+			</Card>
 
 			<MuscleBreakdownSheet
 				detail={selectedDetail}

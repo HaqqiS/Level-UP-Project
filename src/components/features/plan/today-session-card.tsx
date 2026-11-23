@@ -7,16 +7,16 @@ import { ExerciseDetailSheet } from "@/components/features/exercises/exercise-de
 import type { ExerciseItem } from "@/components/features/exercises/types";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameDescription,
-	FrameFooter,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { DailyCheckinSheet } from "./daily-checkin-sheet";
 import type { PlannedSessionView } from "./types";
 
@@ -44,22 +44,22 @@ export function TodaySessionCard({
 
 	if (session.isRest) {
 		return (
-			<Frame>
-				<FramePanel className="flex items-start gap-3">
+			<Card size="sm">
+				<CardHeader className="flex flex-row items-center gap-3">
 					<IconTile variant="soft">
 						<Coffee />
 					</IconTile>
 					<div className="space-y-1">
 						<div className="flex items-center gap-2">
-							<FrameTitle>{t("today.restTitle")}</FrameTitle>
+							<CardTitle>{t("today.restTitle")}</CardTitle>
 							<Badge variant="secondary" size="sm">
 								{t("plan.restBadge")}
 							</Badge>
 						</div>
-						<FrameDescription>{t("today.restBody")}</FrameDescription>
+						<CardDescription>{t("today.restBody")}</CardDescription>
 					</div>
-				</FramePanel>
-				<FrameFooter>
+				</CardHeader>
+				<CardFooter className="flex-col items-stretch gap-2">
 					{onOpenPlan ? (
 						<Button variant="outline" className="w-full" onClick={onOpenPlan}>
 							<Calendar />
@@ -76,17 +76,17 @@ export function TodaySessionCard({
 							{t("today.viewWeek")}
 						</Button>
 					)}
-				</FrameFooter>
-			</Frame>
+				</CardFooter>
+			</Card>
 		);
 	}
 
 	return (
 		<>
-			<Frame spacing="sm">
-				<FrameHeader>
+			<Card size="sm">
+				<CardHeader>
 					<div className="flex flex-wrap items-center justify-between gap-2">
-						<FrameTitle>{session.focus}</FrameTitle>
+						<CardTitle>{session.focus}</CardTitle>
 						<div className="flex items-center gap-1.5">
 							{isCompleted && (
 								<Badge variant="success-light" size="sm">
@@ -105,40 +105,38 @@ export function TodaySessionCard({
 							)}
 						</div>
 					</div>
-					{session.notes && (
-						<FrameDescription>{session.notes}</FrameDescription>
+					{session.notes && <CardDescription>{session.notes}</CardDescription>}
+				</CardHeader>
+
+				<CardContent className="space-y-2.5">
+					{session.dailyCheckin?.aiNote && (
+						<Alert variant="info">
+							<Sparkles />
+							<AlertDescription>{session.dailyCheckin.aiNote}</AlertDescription>
+						</Alert>
 					)}
-				</FrameHeader>
 
-				{session.dailyCheckin?.aiNote && (
-					<Alert variant="info">
-						<Sparkles />
-						<AlertDescription>{session.dailyCheckin.aiNote}</AlertDescription>
-					</Alert>
-				)}
+					{session.dailyCheckin?.fallbackUsed && (
+						<Alert variant="warning">
+							<AlertDescription>{t("checkin.fallback")}</AlertDescription>
+						</Alert>
+					)}
 
-				{session.dailyCheckin?.fallbackUsed && (
-					<Alert variant="warning">
-						<AlertDescription>{t("checkin.fallback")}</AlertDescription>
-					</Alert>
-				)}
-
-				{session.exercises.map((item) => (
-					<button
-						key={item.id}
-						type="button"
-						onClick={() => setSelectedExercise(item.exercise)}
-						className="block w-full rounded-(--frame-panel-radius) text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-					>
-						<FramePanel className="flex items-center justify-between gap-3 transition-colors hover:bg-muted/30">
+					{session.exercises.map((item) => (
+						<button
+							key={item.id}
+							type="button"
+							onClick={() => setSelectedExercise(item.exercise)}
+							className="flex w-full items-center justify-between gap-3 rounded-2xl bg-muted/50 p-3 text-left transition-colors hover:bg-muted/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						>
 							<div className="flex min-w-0 items-center gap-3">
 								<IconTile variant="soft" size="sm">
 									<Dumbbell />
 								</IconTile>
 								<div className="min-w-0">
-									<FrameTitle className="truncate">
+									<p className="truncate text-sm font-semibold">
 										{item.exercise.name}
-									</FrameTitle>
+									</p>
 									<div className="mt-1 flex flex-wrap gap-1.5">
 										<Badge variant="secondary" size="sm">
 											{item.targetSeconds
@@ -162,11 +160,11 @@ export function TodaySessionCard({
 									</div>
 								</div>
 							</div>
-						</FramePanel>
-					</button>
-				))}
+						</button>
+					))}
+				</CardContent>
 
-				<FrameFooter>
+				<CardFooter className="flex-col items-stretch gap-2">
 					{onOpenLogger ? (
 						<Button className="w-full" onClick={onOpenLogger}>
 							{hasStarted
@@ -190,8 +188,8 @@ export function TodaySessionCard({
 							defaultMinutes={defaultMinutes}
 						/>
 					)}
-				</FrameFooter>
-			</Frame>
+				</CardFooter>
+			</Card>
 
 			<ExerciseDetailSheet
 				exercise={selectedExercise}

@@ -7,14 +7,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/reui/badge";
 import {
-	Frame,
-	FrameDescription,
-	FrameFooter,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
-import {
 	Stepper,
 	StepperContent,
 	StepperIndicator,
@@ -25,6 +17,14 @@ import {
 	StepperTrigger,
 } from "@/components/reui/stepper";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	BodyStep,
 	DisclaimerStep,
@@ -210,21 +210,21 @@ export function OnboardingWizard({
 							exit={{ x: direction * -40, opacity: 0 }}
 							transition={{ duration: 0.2 }}
 						>
-							<Frame>
-								<FrameHeader>
-									<FrameTitle>{t(active.titleKey)}</FrameTitle>
+							<Card size="sm">
+								<CardHeader>
+									<CardTitle>{t(active.titleKey)}</CardTitle>
 									{active.subtitleKey && (
-										<FrameDescription>{t(active.subtitleKey)}</FrameDescription>
+										<CardDescription>{t(active.subtitleKey)}</CardDescription>
 									)}
-								</FrameHeader>
-								<FramePanel>
+								</CardHeader>
+								<CardContent>
 									<StepperPanel>
 										<StepperContent value={step + 1}>
 											<StepComponent draft={draft} update={update} />
 										</StepperContent>
 									</StepperPanel>
-								</FramePanel>
-								<FrameFooter>
+								</CardContent>
+								<CardFooter className="flex-col items-stretch gap-2">
 									<Button
 										className="w-full"
 										disabled={!valid || pending}
@@ -237,8 +237,8 @@ export function OnboardingWizard({
 												? t("common.finish")
 												: t("common.next")}
 									</Button>
-								</FrameFooter>
-							</Frame>
+								</CardFooter>
+							</Card>
 						</motion.div>
 					</AnimatePresence>
 				</div>

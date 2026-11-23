@@ -5,13 +5,8 @@ import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Item,
 	ItemActions,
@@ -57,8 +52,19 @@ function QuestRow({
 	}
 
 	return (
-		<Item variant={isDone ? "muted" : "outline"} size="sm">
-			<ItemMedia variant="icon">
+		<Item
+			variant="muted"
+			size="sm"
+			className={
+				isDone
+					? "flex-nowrap bg-muted/30 opacity-75"
+					: "flex-nowrap bg-muted/50"
+			}
+		>
+			<ItemMedia
+				variant="icon"
+				className="size-6 group-has-data-[slot=item-description]/item:translate-y-0 group-has-data-[slot=item-description]/item:self-center"
+			>
 				{isDone ? (
 					<CheckCircle2 className="text-primary" />
 				) : quest.type === "WEEKLY" ? (
@@ -69,7 +75,7 @@ function QuestRow({
 					<Circle className="text-muted-foreground" />
 				)}
 			</ItemMedia>
-			<ItemContent>
+			<ItemContent className="min-w-0">
 				<ItemTitle>{quest.title}</ItemTitle>
 				<ItemDescription>
 					{t("quests.progress", {
@@ -79,7 +85,7 @@ function QuestRow({
 				</ItemDescription>
 				{quest.target > 1 && <Progress value={percent} />}
 			</ItemContent>
-			<ItemActions>
+			<ItemActions className="shrink-0">
 				<Badge variant={isDone ? "success-light" : "secondary"} size="sm">
 					{t("quests.xpReward", { xp: quest.xpReward })}
 				</Badge>
@@ -124,12 +130,12 @@ export function DailyQuestsCard({
 	const t = useTranslations("quests");
 
 	return (
-		<Frame spacing="sm">
-			<FrameHeader>
-				<FrameTitle>{t("title")}</FrameTitle>
-			</FrameHeader>
-			<FramePanel>
-				<Tabs defaultValue="daily">
+		<Card size="sm">
+			<CardHeader>
+				<CardTitle>{t("title")}</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<Tabs defaultValue="daily" className="gap-3">
 					<TabsList>
 						<TabsTrigger value="daily">{t("dailyTab")}</TabsTrigger>
 						<TabsTrigger value="weekly">{t("weeklyTab")}</TabsTrigger>
@@ -165,7 +171,7 @@ export function DailyQuestsCard({
 						)}
 					</TabsContent>
 				</Tabs>
-			</FramePanel>
-		</Frame>
+			</CardContent>
+		</Card>
 	);
 }

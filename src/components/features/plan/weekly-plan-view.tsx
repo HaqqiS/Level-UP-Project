@@ -13,13 +13,6 @@ import {
 } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import {
-	Frame,
-	FrameDescription,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
-import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
@@ -135,38 +128,36 @@ export function WeeklyPlanView({
 										{session.notes ?? t("today.restBody")}
 									</p>
 								) : (
-									<Frame spacing="xs">
+									<div className="space-y-2">
 										{session.notes && (
-											<FrameHeader>
-												<FrameDescription>{session.notes}</FrameDescription>
-											</FrameHeader>
+											<p className="text-xs text-muted-foreground">
+												{session.notes}
+											</p>
 										)}
 										{session.exercises.map((item) => (
 											<button
 												key={item.id}
 												type="button"
 												onClick={() => setSelectedExercise(item.exercise)}
-												className="block w-full rounded-(--frame-panel-radius) text-left"
+												className="flex w-full items-center justify-between gap-2 rounded-2xl bg-muted/50 px-3 py-2.5 text-left transition-colors hover:bg-muted/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 											>
-												<FramePanel className="flex items-center justify-between gap-2 transition-colors hover:bg-muted/30">
-													<FrameTitle className="truncate">
-														{item.exercise.name}
-													</FrameTitle>
-													<Badge variant="secondary" size="sm">
-														{item.targetSeconds
-															? t("today.setsSeconds", {
-																	sets: item.sets,
-																	sec: item.targetSeconds,
-																})
-															: t("today.setsReps", {
-																	sets: item.sets,
-																	reps: item.targetReps ?? 8,
-																})}
-													</Badge>
-												</FramePanel>
+												<p className="truncate text-sm font-semibold">
+													{item.exercise.name}
+												</p>
+												<Badge variant="secondary" size="sm">
+													{item.targetSeconds
+														? t("today.setsSeconds", {
+																sets: item.sets,
+																sec: item.targetSeconds,
+															})
+														: t("today.setsReps", {
+																sets: item.sets,
+																reps: item.targetReps ?? 8,
+															})}
+												</Badge>
 											</button>
 										))}
-									</Frame>
+									</div>
 								)}
 							</AccordionContent>
 						</AccordionItem>

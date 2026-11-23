@@ -7,18 +7,19 @@ import type { PlannedSessionView } from "@/components/features/plan/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import {
-	Frame,
-	FrameFooter,
-	FrameHeader,
-	FrameTitle,
-} from "@/components/reui/frame";
-import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { useOfflineLogger } from "@/lib/offline/use-offline-logger";
 import { ExerciseSetLogger } from "./exercise-set-logger";
 import { OfflineSyncBanner } from "./offline-sync-banner";
@@ -158,50 +159,52 @@ export function WorkoutLogger({
 				</Alert>
 			)}
 
-			<Frame spacing="sm">
-				<FrameHeader>
-					<FrameTitle>{session.focus}</FrameTitle>
-				</FrameHeader>
+			<Card size="sm">
+				<CardHeader>
+					<CardTitle>{session.focus}</CardTitle>
+				</CardHeader>
 
-				<Accordion
-					multiple={false}
-					value={openItems}
-					onValueChange={(value) => setOpenItems(value.map(String))}
-				>
-					{session.exercises.map((item) => {
-						const loggedSets = setsByExercise.get(item.exercise.id) ?? [];
-						const done = loggedSets.length >= item.sets;
+				<CardContent>
+					<Accordion
+						multiple={false}
+						value={openItems}
+						onValueChange={(value) => setOpenItems(value.map(String))}
+					>
+						{session.exercises.map((item) => {
+							const loggedSets = setsByExercise.get(item.exercise.id) ?? [];
+							const done = loggedSets.length >= item.sets;
 
-						return (
-							<AccordionItem key={item.id} value={item.id}>
-								<AccordionTrigger>
-									<div className="flex flex-wrap items-center gap-2">
-										<span>{item.exercise.name}</span>
-										<Badge
-											variant={done ? "success-light" : "secondary"}
-											size="xs"
-										>
-											{t("logger.setsDoneBadge", {
-												done: loggedSets.length,
-												target: item.sets,
-											})}
-										</Badge>
-									</div>
-								</AccordionTrigger>
-								<AccordionContent>
-									<ExerciseSetLogger
-										plannedExercise={item}
-										loggedSets={loggedSets}
-										onLogSet={(input) => handleLogSetForItem(item, input)}
-									/>
-								</AccordionContent>
-							</AccordionItem>
-						);
-					})}
-				</Accordion>
+							return (
+								<AccordionItem key={item.id} value={item.id}>
+									<AccordionTrigger>
+										<div className="flex flex-wrap items-center gap-2">
+											<span>{item.exercise.name}</span>
+											<Badge
+												variant={done ? "success-light" : "secondary"}
+												size="xs"
+											>
+												{t("logger.setsDoneBadge", {
+													done: loggedSets.length,
+													target: item.sets,
+												})}
+											</Badge>
+										</div>
+									</AccordionTrigger>
+									<AccordionContent>
+										<ExerciseSetLogger
+											plannedExercise={item}
+											loggedSets={loggedSets}
+											onLogSet={(input) => handleLogSetForItem(item, input)}
+										/>
+									</AccordionContent>
+								</AccordionItem>
+							);
+						})}
+					</Accordion>
+				</CardContent>
 
 				{!isCompleted && hasAnySets && (
-					<FrameFooter>
+					<CardFooter className="flex-col items-stretch gap-2">
 						<Button
 							variant="secondary"
 							className="w-full"
@@ -211,9 +214,9 @@ export function WorkoutLogger({
 							{finishing && <Loader2 className="animate-spin" />}
 							{finishing ? t("logger.finishing") : t("logger.finishEarly")}
 						</Button>
-					</FrameFooter>
+					</CardFooter>
 				)}
-			</Frame>
+			</Card>
 		</div>
 	);
 }

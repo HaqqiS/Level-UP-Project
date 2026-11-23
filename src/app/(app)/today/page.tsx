@@ -6,7 +6,7 @@ import {
 	TrainHubTabs,
 	type TrainTab,
 } from "@/components/features/plan/train-hub-tabs";
-import { Frame, FramePanel } from "@/components/reui/frame";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireOnboarded } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import {
@@ -212,9 +212,11 @@ export default async function TodayPage({
 			<h1 className="font-semibold">{t("title")}</h1>
 			<Suspense
 				fallback={
-					<Frame>
-						<FramePanel className="h-48" />
-					</Frame>
+					<Card size="sm">
+						<CardContent>
+							<div className="h-40 animate-pulse rounded-2xl bg-muted/40" />
+						</CardContent>
+					</Card>
 				}
 			>
 				<TodayContent searchParams={searchParams} />
