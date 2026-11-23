@@ -17,8 +17,8 @@ export function DisclaimerStep({ draft, update }: StepProps) {
 
 	return (
 		<FieldGroup>
-			<Alert variant="warning">
-				<TriangleAlert />
+			<Alert variant="warning" className="items-start">
+				<TriangleAlert className="mt-0.5" />
 				<AlertDescription>{t("body")}</AlertDescription>
 			</Alert>
 

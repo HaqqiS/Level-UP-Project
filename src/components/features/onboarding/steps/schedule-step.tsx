@@ -20,14 +20,19 @@ export function ScheduleStep({ draft, update }: StepProps) {
 				<ToggleGroup
 					multiple
 					variant="outline"
-					className="w-full flex-wrap"
+					spacing={1}
+					className="grid w-full grid-cols-7 gap-1"
 					value={(draft.trainingDays ?? []).map(String)}
 					onValueChange={(values) =>
 						update({ trainingDays: values.map(Number) })
 					}
 				>
 					{ORDERED_DAYS.map((day) => (
-						<ToggleGroupItem key={day} value={String(day)}>
+						<ToggleGroupItem
+							key={day}
+							value={String(day)}
+							className="w-full px-0 text-xs sm:px-2"
+						>
 							{t(`dayNames.${day}` as "dayNames.0")}
 						</ToggleGroupItem>
 					))}

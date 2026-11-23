@@ -118,7 +118,7 @@ export function ProfileSettingsTab({
 										<div className="truncate text-sm font-medium">
 											{t("profile.cycleSettings.title")}
 										</div>
-										<div className="truncate text-xs text-muted-foreground">
+										<div className="line-clamp-2 text-xs leading-snug text-muted-foreground">
 											{t("profile.settings.cycleRowDesc")}
 										</div>
 									</div>
@@ -150,7 +150,7 @@ export function ProfileSettingsTab({
 									<div className="truncate text-sm font-medium">
 										{t("reminders.title")}
 									</div>
-									<div className="truncate text-xs text-muted-foreground">
+									<div className="line-clamp-2 text-xs leading-snug text-muted-foreground">
 										{t("profile.settings.remindersRowDesc")}
 									</div>
 								</div>
@@ -187,7 +187,7 @@ export function ProfileSettingsTab({
 									<div className="truncate text-sm font-medium">
 										{t("profile.redo")}
 									</div>
-									<div className="truncate text-xs text-muted-foreground">
+									<div className="line-clamp-2 text-xs leading-snug text-muted-foreground">
 										{t("profile.settings.redoDesc")}
 									</div>
 								</div>
@@ -209,7 +209,7 @@ export function ProfileSettingsTab({
 									<div className="truncate text-sm font-medium">
 										{t("common.signOut")}
 									</div>
-									<div className="truncate text-xs text-muted-foreground">
+									<div className="line-clamp-2 text-xs leading-snug text-muted-foreground">
 										{t("profile.settings.signOutDesc")}
 									</div>
 								</div>
@@ -243,7 +243,7 @@ export function ProfileSettingsTab({
 									<div className="truncate text-sm font-medium text-destructive">
 										{t("profile.settings.deleteRowTitle")}
 									</div>
-									<div className="truncate text-xs text-muted-foreground">
+									<div className="line-clamp-2 text-xs leading-snug text-muted-foreground">
 										{t("profile.settings.deleteRowDesc")}
 									</div>
 								</div>

@@ -1,6 +1,7 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -89,10 +90,12 @@ export function OnboardingWizard({
 	initialDraft?: Partial<OnboardingInput>;
 } = {}) {
 	const t = useTranslations();
+	const router = useRouter();
 	const { step, draft, setStep, update, hydrate, reset } = useOnboardingStore();
 	const [pending, startTransition] = useTransition();
 	const [direction, setDirection] = useState(1);
 	const hydratedRef = useRef(false);
+	const isRedo = Boolean(initialDraft);
 
 	useEffect(() => {
 		if (!hydratedRef.current && initialDraft) {
@@ -108,6 +111,11 @@ export function OnboardingWizard({
 	function go(delta: number) {
 		setDirection(delta);
 		setStep(Math.min(Math.max(step + delta, 0), TOTAL - 1));
+	}
+
+	function handleCancelRedo() {
+		reset();
+		router.push("/profile");
 	}
 
 	function submit() {
@@ -132,7 +140,7 @@ export function OnboardingWizard({
 	const StepComponent = active.Component;
 
 	return (
-		<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-4 p-4">
+		<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-4 overflow-x-clip p-4">
 			<Stepper
 				value={step + 1}
 				onValueChange={(nextStep) => {
@@ -146,17 +154,31 @@ export function OnboardingWizard({
 			>
 				<div className="flex items-center justify-between gap-3">
 					<Button
+						type="button"
 						variant="ghost"
 						size="icon"
 						aria-label={t("common.back")}
-						onClick={() => go(-1)}
-						disabled={step === 0 || pending}
+						onClick={() => (step === 0 && isRedo ? handleCancelRedo() : go(-1))}
+						disabled={(step === 0 && !isRedo) || pending}
 					>
 						<ChevronLeft />
 					</Button>
-					<Badge variant="secondary">
-						{t("onboarding.stepOf", { current: step + 1, total: TOTAL })}
-					</Badge>
+					<div className="flex items-center gap-2">
+						<Badge variant="secondary">
+							{t("onboarding.stepOf", { current: step + 1, total: TOTAL })}
+						</Badge>
+						{isRedo && (
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								disabled={pending}
+								onClick={handleCancelRedo}
+							>
+								{t("common.cancel")}
+							</Button>
+						)}
+					</div>
 				</div>
 
 				<StepperNav>
@@ -166,7 +188,9 @@ export function OnboardingWizard({
 							step={index + 1}
 							disabled={index > step || pending}
 						>
-							<StepperTrigger>
+							<StepperTrigger
+								aria-label={`${t("onboarding.stepOf", { current: index + 1, total: TOTAL })}: ${t(item.titleKey)}`}
+							>
 								<StepperIndicator>{index + 1}</StepperIndicator>
 							</StepperTrigger>
 							{index < STEPS.length - 1 && (
@@ -176,7 +200,7 @@ export function OnboardingWizard({
 					))}
 				</StepperNav>
 
-				<div className="overflow-hidden">
+				<div className="overflow-x-clip">
 					<AnimatePresence mode="wait" custom={direction} initial={false}>
 						<motion.div
 							key={step}

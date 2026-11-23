@@ -236,7 +236,8 @@ export function PushRemindersCard({
 					<FieldLabel>{t("reminders.timeLabel")}</FieldLabel>
 					<ToggleGroup
 						variant="outline"
-						className="w-full flex-wrap"
+						spacing={1}
+						className="grid w-full grid-cols-3 gap-1.5"
 						value={presetValue}
 						onValueChange={(values) => {
 							const picked = values[0];
@@ -246,7 +247,11 @@ export function PushRemindersCard({
 						}}
 					>
 						{REMINDER_TIME_PRESETS.map((preset) => (
-							<ToggleGroupItem key={preset} value={preset}>
+							<ToggleGroupItem
+								key={preset}
+								value={preset}
+								className="w-full justify-center"
+							>
 								{preset}
 							</ToggleGroupItem>
 						))}
@@ -260,6 +265,7 @@ export function PushRemindersCard({
 					<div className="flex items-center gap-2">
 						<Input
 							id="reminder-custom-time"
+							name="reminderTime"
 							type="time"
 							value={reminderTime}
 							onChange={(e) => setReminderTime(e.target.value)}

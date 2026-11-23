@@ -1,6 +1,7 @@
 "use client";
 import { Minus, Scale, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Badge } from "@/components/reui/badge";
 import {
@@ -44,6 +45,33 @@ export function WeightTrendChart({
 	onRangeChange: (days: 30 | 90) => void;
 }) {
 	const t = useTranslations("body");
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [isMeasured, setIsMeasured] = useState(false);
+	const hasSeries = series.length > 0;
+
+	useEffect(() => {
+		const el = containerRef.current;
+		if (!hasSeries || !el) {
+			setIsMeasured(false);
+			return;
+		}
+
+		const updateMeasurement = () => {
+			const next = el.clientWidth > 0 && el.clientHeight > 0;
+			setIsMeasured((prev) => (prev === next ? prev : next));
+		};
+
+		updateMeasurement();
+
+		if (typeof ResizeObserver === "undefined") {
+			return;
+		}
+
+		const observer = new ResizeObserver(updateMeasurement);
+		observer.observe(el);
+
+		return () => observer.disconnect();
+	}, [hasSeries]);
 
 	const chartConfig = {
 		valueKg: {
@@ -116,66 +144,78 @@ export function WeightTrendChart({
 						</EmptyHeader>
 					</Empty>
 				) : (
-					<ChartContainer config={chartConfig}>
-						<AreaChart
-							accessibilityLayer
-							data={[...series]}
-							margin={{ top: 12, right: 8, bottom: 0, left: -16 }}
-						>
-							<defs>
-								<linearGradient
-									id="weight-area-fill"
-									x1="0"
-									y1="0"
-									x2="0"
-									y2="1"
+					<div ref={containerRef} className="min-h-[200px] w-full">
+						{isMeasured ? (
+							<ChartContainer
+								config={chartConfig}
+								className="min-h-[200px] w-full"
+							>
+								<AreaChart
+									accessibilityLayer
+									data={[...series]}
+									margin={{ top: 12, right: 8, bottom: 0, left: -16 }}
 								>
-									<stop
-										offset="5%"
-										stopColor="var(--color-valueKg)"
-										stopOpacity={0.35}
+									<defs>
+										<linearGradient
+											id="weight-area-fill"
+											x1="0"
+											y1="0"
+											x2="0"
+											y2="1"
+										>
+											<stop
+												offset="5%"
+												stopColor="var(--color-valueKg)"
+												stopOpacity={0.35}
+											/>
+											<stop
+												offset="95%"
+												stopColor="var(--color-valueKg)"
+												stopOpacity={0.02}
+											/>
+										</linearGradient>
+									</defs>
+									<CartesianGrid vertical={false} strokeDasharray="3 3" />
+									<XAxis
+										dataKey="dateKey"
+										tickLine={false}
+										axisLine={false}
+										tickMargin={8}
+										tickFormatter={formatShortDate}
 									/>
-									<stop
-										offset="95%"
-										stopColor="var(--color-valueKg)"
-										stopOpacity={0.02}
+									<YAxis
+										tickLine={false}
+										axisLine={false}
+										domain={["dataMin - 2", "dataMax + 2"]}
+										tickFormatter={(v) => `${v}`}
 									/>
-								</linearGradient>
-							</defs>
-							<CartesianGrid vertical={false} strokeDasharray="3 3" />
-							<XAxis
-								dataKey="dateKey"
-								tickLine={false}
-								axisLine={false}
-								tickMargin={8}
-								tickFormatter={formatShortDate}
-							/>
-							<YAxis
-								tickLine={false}
-								axisLine={false}
-								domain={["dataMin - 2", "dataMax + 2"]}
-								tickFormatter={(v) => `${v}`}
-							/>
-							<ChartTooltip
-								cursor={false}
-								content={
-									<ChartTooltipContent
-										indicator="dot"
-										labelFormatter={(label) => String(label)}
+									<ChartTooltip
+										cursor={false}
+										content={
+											<ChartTooltipContent
+												indicator="dot"
+												labelFormatter={(label) => String(label)}
+											/>
+										}
 									/>
-								}
+									<Area
+										type="monotone"
+										dataKey="valueKg"
+										stroke="var(--color-valueKg)"
+										strokeWidth={2}
+										fill="url(#weight-area-fill)"
+										dot={{ r: 3 }}
+										activeDot={{ r: 5 }}
+									/>
+								</AreaChart>
+							</ChartContainer>
+						) : (
+							<div
+								aria-hidden="true"
+								className="aspect-video min-h-[200px] w-full"
 							/>
-							<Area
-								type="monotone"
-								dataKey="valueKg"
-								stroke="var(--color-valueKg)"
-								strokeWidth={2}
-								fill="url(#weight-area-fill)"
-								dot={{ r: 3 }}
-								activeDot={{ r: 5 }}
-							/>
-						</AreaChart>
-					</ChartContainer>
+						)}
+					</div>
 				)}
 			</CardContent>
 		</Card>
