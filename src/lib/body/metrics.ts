@@ -6,11 +6,47 @@ export const LogWeightInputSchema = z.object({
 
 export type LogWeightInput = z.input<typeof LogWeightInputSchema>;
 
+export const MEASUREMENT_TYPES = ["WAIST", "CHEST", "ARM"] as const;
+export type MeasurementType = (typeof MEASUREMENT_TYPES)[number];
+
+const MeasurementValueSchema = z.number().min(15).max(250);
+
+export const LogMeasurementsBatchInputSchema = z
+	.object({
+		waistCm: MeasurementValueSchema.nullable().optional(),
+		chestCm: MeasurementValueSchema.nullable().optional(),
+		armCm: MeasurementValueSchema.nullable().optional(),
+	})
+	.refine(
+		(val) => val.waistCm != null || val.chestCm != null || val.armCm != null,
+		{ message: "At least one measurement is required" },
+	);
+
+export type LogMeasurementsBatchInput = z.input<
+	typeof LogMeasurementsBatchInputSchema
+>;
+
 export type WeightEntryPoint = {
 	id: string;
 	dateKey: string; // YYYY-MM-DD
 	valueKg: number;
 	measuredAt: string; // ISO timestamp
+};
+
+export type MeasurementEntryPoint = {
+	id: string;
+	type: MeasurementType;
+	dateKey: string; // YYYY-MM-DD
+	valueCm: number;
+	measuredAt: string; // ISO timestamp
+};
+
+export type MeasurementHistoryGroup = {
+	key: string;
+	dateKey: string;
+	measuredAt: string;
+	metricIds: string[];
+	values: Partial<Record<MeasurementType, number>>;
 };
 
 export type WeightSummary = {
@@ -97,4 +133,35 @@ export function computeWeightSummary(params: {
 		maxWeightKg,
 		bmi,
 	};
+}
+
+/**
+ * Groups circumference entries recorded at the same timestamp into a single
+ * combined history row, sorted newest-first.
+ */
+export function groupMeasurementEntries(
+	entries: readonly MeasurementEntryPoint[],
+): MeasurementHistoryGroup[] {
+	const groupsByKey = new Map<string, MeasurementHistoryGroup>();
+
+	for (const entry of entries) {
+		const key = `${entry.measuredAt}|${entry.dateKey}`;
+		let group = groupsByKey.get(key);
+		if (!group) {
+			group = {
+				key,
+				dateKey: entry.dateKey,
+				measuredAt: entry.measuredAt,
+				metricIds: [],
+				values: {},
+			};
+			groupsByKey.set(key, group);
+		}
+		group.metricIds.push(entry.id);
+		group.values[entry.type] = round1(entry.valueCm);
+	}
+
+	return [...groupsByKey.values()].sort((a, b) =>
+		b.measuredAt.localeCompare(a.measuredAt),
+	);
 }

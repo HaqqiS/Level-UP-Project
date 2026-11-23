@@ -1,12 +1,7 @@
 "use client";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameDescription,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
+import { Card, CardContent } from "@/components/ui/card";
 import type { WeightSummary } from "@/lib/body/metrics";
 
 export function BodySummaryCards({
@@ -27,44 +22,48 @@ export function BodySummaryCards({
 				: "info-light";
 
 	return (
-		<Frame spacing="sm">
-			<div className="grid grid-cols-2 gap-1.5">
-				<FramePanel className="space-y-1">
-					<FrameDescription>{t("currentWeight")}</FrameDescription>
-					<FrameTitle>
-						{summary.currentWeightKg !== null
-							? t("kgUnit", { val: summary.currentWeightKg.toFixed(1) })
-							: "—"}
-					</FrameTitle>
-				</FramePanel>
-
-				<FramePanel className="space-y-1">
-					<FrameDescription>{t("periodChange")}</FrameDescription>
-					<div>
-						<Badge variant={deltaVariant}>
-							{summary.deltaKg !== null
-								? `${deltaSign}${summary.deltaKg.toFixed(1)} kg`
+		<Card size="sm">
+			<CardContent>
+				<div className="grid grid-cols-2 gap-2">
+					<div className="space-y-1 rounded-2xl bg-muted/50 px-3 py-2.5">
+						<p className="text-xs text-muted-foreground">
+							{t("currentWeight")}
+						</p>
+						<p className="text-sm font-semibold">
+							{summary.currentWeightKg !== null
+								? t("kgUnit", { val: summary.currentWeightKg.toFixed(1) })
 								: "—"}
-						</Badge>
+						</p>
 					</div>
-				</FramePanel>
 
-				<FramePanel className="space-y-1">
-					<FrameDescription>{t("heightLabel")}</FrameDescription>
-					<FrameTitle>
-						{latestHeightCm !== null
-							? t("cmUnit", { val: Math.round(latestHeightCm) })
-							: "—"}
-					</FrameTitle>
-				</FramePanel>
+					<div className="space-y-1 rounded-2xl bg-muted/50 px-3 py-2.5">
+						<p className="text-xs text-muted-foreground">{t("periodChange")}</p>
+						<div>
+							<Badge variant={deltaVariant}>
+								{summary.deltaKg !== null
+									? `${deltaSign}${summary.deltaKg.toFixed(1)} kg`
+									: "—"}
+							</Badge>
+						</div>
+					</div>
 
-				<FramePanel className="space-y-1">
-					<FrameDescription>{t("bmiLabel")}</FrameDescription>
-					<FrameTitle>
-						{summary.bmi !== null ? summary.bmi.toFixed(1) : "—"}
-					</FrameTitle>
-				</FramePanel>
-			</div>
-		</Frame>
+					<div className="space-y-1 rounded-2xl bg-muted/50 px-3 py-2.5">
+						<p className="text-xs text-muted-foreground">{t("heightLabel")}</p>
+						<p className="text-sm font-semibold">
+							{latestHeightCm !== null
+								? t("cmUnit", { val: Math.round(latestHeightCm) })
+								: "—"}
+						</p>
+					</div>
+
+					<div className="space-y-1 rounded-2xl bg-muted/50 px-3 py-2.5">
+						<p className="text-xs text-muted-foreground">{t("bmiLabel")}</p>
+						<p className="text-sm font-semibold">
+							{summary.bmi !== null ? summary.bmi.toFixed(1) : "—"}
+						</p>
+					</div>
+				</div>
+			</CardContent>
+		</Card>
 	);
 }

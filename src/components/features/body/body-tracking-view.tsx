@@ -7,7 +7,6 @@ import {
 import { BodySummaryCards } from "./body-summary-cards";
 import { MeasurementsCard } from "./measurements-card";
 import type { BodyTrackingViewProps } from "./types";
-import { WeightHistoryList } from "./weight-history-list";
 import { WeightLogForm } from "./weight-log-form";
 import { WeightTrendChart } from "./weight-trend-chart";
 
@@ -15,6 +14,7 @@ export function BodyTrackingView({
 	todayKey,
 	latestHeightCm,
 	entries,
+	measurementEntries,
 	measurements,
 }: BodyTrackingViewProps) {
 	const [range, setRange] = useState<30 | 90>(30);
@@ -44,9 +44,11 @@ export function BodyTrackingView({
 				range={range}
 				onRangeChange={setRange}
 			/>
-			<WeightLogForm latestWeightKg={latestWeightKg} />
-			<MeasurementsCard measurements={measurements} />
-			<WeightHistoryList entries={entries} />
+			<WeightLogForm latestWeightKg={latestWeightKg} entries={entries} />
+			<MeasurementsCard
+				measurements={measurements}
+				entries={measurementEntries}
+			/>
 		</div>
 	);
 }

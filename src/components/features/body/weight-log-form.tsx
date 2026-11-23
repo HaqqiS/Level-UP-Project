@@ -4,12 +4,6 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
-	Frame,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
-import {
 	NumberField,
 	NumberFieldDecrement,
 	NumberFieldGroup,
@@ -18,12 +12,17 @@ import {
 	NumberFieldScrubArea,
 } from "@/components/reui/number-field";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { WeightEntryPoint } from "@/lib/body/metrics";
 import { logWeightAction } from "@/server/actions/body";
+import { WeightHistoryList } from "./weight-history-list";
 
 export function WeightLogForm({
 	latestWeightKg,
+	entries,
 }: {
 	latestWeightKg: number | null;
+	entries: readonly WeightEntryPoint[];
 }) {
 	const t = useTranslations();
 	const [weightKg, setWeightKg] = useState<number>(latestWeightKg ?? 65);
@@ -41,11 +40,11 @@ export function WeightLogForm({
 	}
 
 	return (
-		<Frame spacing="sm">
-			<FrameHeader>
-				<FrameTitle>{t("body.logTitle")}</FrameTitle>
-			</FrameHeader>
-			<FramePanel>
+		<Card size="sm">
+			<CardHeader>
+				<CardTitle>{t("body.logTitle")}</CardTitle>
+			</CardHeader>
+			<CardContent className="flex flex-col gap-3">
 				<div className="flex items-end gap-3">
 					<NumberField
 						className="flex-1"
@@ -70,7 +69,9 @@ export function WeightLogForm({
 						{pending ? t("body.logging") : t("body.logButton")}
 					</Button>
 				</div>
-			</FramePanel>
-		</Frame>
+
+				<WeightHistoryList entries={entries} />
+			</CardContent>
+		</Card>
 	);
 }

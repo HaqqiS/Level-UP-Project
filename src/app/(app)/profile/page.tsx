@@ -9,13 +9,8 @@ import {
 import { ProfileSettingsTab } from "@/components/features/profile/profile-settings-tab";
 import { InstallPromptBanner } from "@/components/features/pwa/install-prompt-banner";
 import { Badge } from "@/components/reui/badge";
-import {
-	Frame,
-	FrameDescription,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireOnboarded } from "@/lib/auth/session";
 import { getBodyTrackingData } from "@/server/services/body-metric-service";
 import { getAchievementsForUser } from "@/server/services/gamification-service";
@@ -53,43 +48,51 @@ async function ProfileDetails({
 
 	const overviewContent = (
 		<>
-			<Frame>
-				<FramePanel className="flex items-center gap-3">
-					<Avatar size="lg">
-						{session.user.image && (
-							<AvatarImage src={session.user.image} alt={session.user.name} />
-						)}
-						<AvatarFallback>{getInitials(session.user.name)}</AvatarFallback>
-					</Avatar>
-					<div className="min-w-0">
-						<FrameTitle className="truncate">{session.user.name}</FrameTitle>
-						<FrameDescription className="truncate">
-							{session.user.email}
-						</FrameDescription>
-					</div>
-				</FramePanel>
-
-				<FramePanel className="flex flex-col gap-3">
-					<div className="flex items-center justify-between gap-2 text-sm">
-						<span className="text-muted-foreground">{t("profile.level")}</span>
-						<Badge variant="secondary">
-							{t(`onboarding.experience.${profile.experienceLevel}`)}
-						</Badge>
-					</div>
-					<div className="flex items-start justify-between gap-2 text-sm">
-						<span className="text-muted-foreground">{t("profile.days")}</span>
-						<div className="flex flex-wrap justify-end gap-1">
-							{profile.trainingDays.map((day) => (
-								<Badge key={day} variant="outline">
-									{t(
-										`onboarding.schedule.dayNames.${day}` as "onboarding.schedule.dayNames.0",
-									)}
-								</Badge>
-							))}
+			<Card size="sm">
+				<CardContent className="space-y-3">
+					<div className="flex items-center gap-3">
+						<Avatar size="lg">
+							{session.user.image && (
+								<AvatarImage src={session.user.image} alt={session.user.name} />
+							)}
+							<AvatarFallback>{getInitials(session.user.name)}</AvatarFallback>
+						</Avatar>
+						<div className="min-w-0">
+							<p className="truncate text-sm font-semibold">
+								{session.user.name}
+							</p>
+							<p className="truncate text-xs text-muted-foreground">
+								{session.user.email}
+							</p>
 						</div>
 					</div>
-				</FramePanel>
-			</Frame>
+
+					<div className="space-y-2.5 rounded-2xl bg-muted/50 p-3">
+						<div className="flex items-center justify-between gap-2 text-sm">
+							<span className="text-muted-foreground">
+								{t("profile.level")}
+							</span>
+							<Badge variant="secondary">
+								{t(`onboarding.experience.${profile.experienceLevel}`)}
+							</Badge>
+						</div>
+						<div className="flex items-center justify-between gap-2 text-sm">
+							<span className="shrink-0 text-muted-foreground">
+								{t("profile.days")}
+							</span>
+							<div className="flex flex-wrap justify-end gap-1">
+								{profile.trainingDays.map((day) => (
+									<Badge key={day} variant="outline">
+										{t(
+											`onboarding.schedule.dayNames.${day}` as "onboarding.schedule.dayNames.0",
+										)}
+									</Badge>
+								))}
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			<AchievementsGrid achievements={achievements} />
 		</>
@@ -100,6 +103,7 @@ async function ProfileDetails({
 			todayKey={bodyData.todayKey}
 			latestHeightCm={bodyData.latestHeightCm}
 			entries={bodyData.entries}
+			measurementEntries={bodyData.measurementEntries}
 			measurements={bodyData.measurements}
 		/>
 	);
@@ -154,9 +158,11 @@ export default async function ProfilePage({
 			<h1 className="font-semibold">{t("title")}</h1>
 			<Suspense
 				fallback={
-					<Frame>
-						<FramePanel className="h-32" />
-					</Frame>
+					<Card size="sm">
+						<CardContent>
+							<div className="h-24 animate-pulse rounded-2xl bg-muted/40" />
+						</CardContent>
+					</Card>
 				}
 			>
 				<ProfileDetails searchParams={searchParams} />

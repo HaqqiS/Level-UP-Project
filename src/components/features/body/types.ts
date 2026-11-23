@@ -1,4 +1,7 @@
-import type { WeightEntryPoint } from "@/lib/body/metrics";
+import type {
+	MeasurementEntryPoint,
+	WeightEntryPoint,
+} from "@/lib/body/metrics";
 
 export type BodyMeasurementsSummary = {
 	WAIST: number | null;
@@ -10,5 +13,6 @@ export type BodyTrackingViewProps = {
 	todayKey: string;
 	latestHeightCm: number | null;
 	entries: WeightEntryPoint[];
+	measurementEntries: MeasurementEntryPoint[];
 	measurements: BodyMeasurementsSummary;
 };

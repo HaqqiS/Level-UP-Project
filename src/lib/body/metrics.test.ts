@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
 	computeWeightSummary,
 	filterWeightSeriesByDays,
+	groupMeasurementEntries,
+	LogMeasurementsBatchInputSchema,
 	LogWeightInputSchema,
+	type MeasurementEntryPoint,
 	type WeightEntryPoint,
 } from "./metrics";
 
@@ -100,6 +103,94 @@ describe("computeWeightSummary", () => {
 			minWeightKg: 70.0,
 			maxWeightKg: 72.5,
 			bmi: 22.9,
+		});
+	});
+});
+
+describe("LogMeasurementsBatchInputSchema", () => {
+	it("accepts all 3 measurements, partial subsets, and rejects empty or out-of-range inputs", () => {
+		expect(
+			LogMeasurementsBatchInputSchema.safeParse({
+				waistCm: 80.5,
+				chestCm: 96,
+				armCm: 33.2,
+			}).success,
+		).toBe(true);
+		expect(
+			LogMeasurementsBatchInputSchema.safeParse({
+				waistCm: 79,
+				chestCm: null,
+				armCm: undefined,
+			}).success,
+		).toBe(true);
+		expect(
+			LogMeasurementsBatchInputSchema.safeParse({
+				waistCm: null,
+				chestCm: null,
+				armCm: null,
+			}).success,
+		).toBe(false);
+		expect(
+			LogMeasurementsBatchInputSchema.safeParse({
+				waistCm: 14.9,
+			}).success,
+		).toBe(false);
+		expect(
+			LogMeasurementsBatchInputSchema.safeParse({
+				armCm: 250.1,
+			}).success,
+		).toBe(false);
+	});
+});
+
+describe("groupMeasurementEntries", () => {
+	it("groups batch entries sharing the same measuredAt timestamp and sorts newest-first", () => {
+		const entries: MeasurementEntryPoint[] = [
+			{
+				id: "legacy-chest",
+				type: "CHEST",
+				dateKey: "2026-11-20",
+				valueCm: 94.04,
+				measuredAt: "2026-11-20T07:00:00.000Z",
+			},
+			{
+				id: "batch-waist",
+				type: "WAIST",
+				dateKey: "2026-11-23",
+				valueCm: 80.24,
+				measuredAt: "2026-11-23T08:00:00.000Z",
+			},
+			{
+				id: "batch-chest",
+				type: "CHEST",
+				dateKey: "2026-11-23",
+				valueCm: 95.56,
+				measuredAt: "2026-11-23T08:00:00.000Z",
+			},
+			{
+				id: "batch-arm",
+				type: "ARM",
+				dateKey: "2026-11-23",
+				valueCm: 32.5,
+				measuredAt: "2026-11-23T08:00:00.000Z",
+			},
+		];
+
+		const groups = groupMeasurementEntries(entries);
+		expect(groups).toHaveLength(2);
+		expect(groups[0]).toEqual({
+			key: "2026-11-23T08:00:00.000Z|2026-11-23",
+			dateKey: "2026-11-23",
+			measuredAt: "2026-11-23T08:00:00.000Z",
+			metricIds: ["batch-waist", "batch-chest", "batch-arm"],
+			values: { WAIST: 80.2, CHEST: 95.6, ARM: 32.5 },
+		});
+		expect(groups[1]).toEqual({
+			key: "2026-11-20T07:00:00.000Z|2026-11-20",
+			dateKey: "2026-11-20",
+			measuredAt: "2026-11-20T07:00:00.000Z",
+			metricIds: ["legacy-chest"],
+			values: { CHEST: 94.0 },
 		});
 	});
 });

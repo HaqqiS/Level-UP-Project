@@ -1,15 +1,16 @@
 "use client";
-import { Scale, Trash2 } from "lucide-react";
+import { cn } from "cn";
+import { ChevronDown, History, Scale, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
-import {
-	Frame,
-	FrameHeader,
-	FramePanel,
-	FrameTitle,
-} from "@/components/reui/frame";
+import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	Item,
 	ItemActions,
@@ -21,6 +22,45 @@ import {
 } from "@/components/ui/item";
 import type { WeightEntryPoint } from "@/lib/body/metrics";
 import { deleteWeightEntryAction } from "@/server/actions/body";
+
+export function MetricHistoryCollapsible({
+	title,
+	count,
+	defaultOpen = false,
+	children,
+}: {
+	title: string;
+	count: number;
+	defaultOpen?: boolean;
+	children: ReactNode;
+}) {
+	const [open, setOpen] = useState(defaultOpen);
+
+	return (
+		<div className="border-t border-border/60 pt-3">
+			<Collapsible open={open} onOpenChange={setOpen}>
+				<CollapsibleTrigger className="flex w-full items-center justify-between gap-2 rounded-xl px-1 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+					<span className="flex items-center gap-2">
+						<History className="size-4 shrink-0" />
+						<span>{title}</span>
+						<Badge variant="secondary" size="xs" className="tabular-nums">
+							{count}
+						</Badge>
+					</span>
+					<ChevronDown
+						className={cn(
+							"size-4 shrink-0 transition-transform duration-200",
+							open && "rotate-180",
+						)}
+					/>
+				</CollapsibleTrigger>
+				<CollapsibleContent className="pt-2.5">
+					<ItemGroup>{children}</ItemGroup>
+				</CollapsibleContent>
+			</Collapsible>
+		</div>
+	);
+}
 
 function HistoryRow({
 	entry,
@@ -46,17 +86,20 @@ function HistoryRow({
 	}
 
 	return (
-		<Item variant="outline" size="xs">
-			<ItemMedia variant="icon">
+		<Item variant="muted" size="xs" className="flex-nowrap bg-muted/50">
+			<ItemMedia
+				variant="icon"
+				className="size-6 group-has-data-[slot=item-description]/item:translate-y-0 group-has-data-[slot=item-description]/item:self-center"
+			>
 				<Scale />
 			</ItemMedia>
-			<ItemContent>
+			<ItemContent className="min-w-0">
 				<ItemTitle>
 					{t("body.kgUnit", { val: entry.valueKg.toFixed(1) })}
 				</ItemTitle>
 				<ItemDescription>{entry.dateKey}</ItemDescription>
 			</ItemContent>
-			<ItemActions>
+			<ItemActions className="shrink-0">
 				<Button
 					variant="ghost"
 					size="icon-xs"
@@ -83,17 +126,10 @@ export function WeightHistoryList({
 	if (recent.length === 0) return null;
 
 	return (
-		<Frame spacing="sm">
-			<FrameHeader>
-				<FrameTitle>{t("historyTitle")}</FrameTitle>
-			</FrameHeader>
-			<FramePanel>
-				<ItemGroup>
-					{recent.map((entry) => (
-						<HistoryRow key={entry.id} entry={entry} canDelete={canDelete} />
-					))}
-				</ItemGroup>
-			</FramePanel>
-		</Frame>
+		<MetricHistoryCollapsible title={t("historyTitle")} count={recent.length}>
+			{recent.map((entry) => (
+				<HistoryRow key={entry.id} entry={entry} canDelete={canDelete} />
+			))}
+		</MetricHistoryCollapsible>
 	);
 }
