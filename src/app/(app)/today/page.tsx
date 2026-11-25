@@ -17,8 +17,12 @@ import {
 	type HeatmapWorkoutInput,
 } from "@/lib/exercises/muscle-heatmap";
 import { getIsoWeekKey } from "@/lib/gamification/engine";
-import { ensureTodayQuestsAndStats } from "@/server/services/gamification-service";
-import { getCurrentPlanPageData } from "@/server/services/weekly-plan-service";
+import { getTodayGamificationReadModel } from "@/server/services/gamification-service";
+import {
+	getCachedExerciseCatalog,
+	getCurrentWeeklyPlan,
+	getLocalDateKey,
+} from "@/server/services/weekly-plan-service";
 import { getDailyHydrationMlForUser } from "@/server/services/wellness-service";
 
 function normalizeTrainTab(raw?: string): TrainTab {
@@ -40,32 +44,42 @@ async function TodayContent({
 	const resolvedParams = await searchParams;
 	const initialTab = normalizeTrainTab(resolvedParams.tab);
 	const { session, profile } = await requireOnboarded();
+	const userId = session.user.id;
 
-	const [
-		{ plan, todayDayOfWeek, allExercises },
-		{ todayKey, todaySession, todayLog, quests, weeklyQuests, stats },
-	] = await Promise.all([
-		getCurrentPlanPageData(session.user.id, profile.timezone),
-		ensureTodayQuestsAndStats(session.user.id),
-	]);
-
+	const todayKey = getLocalDateKey(profile.timezone);
+	const todayDayOfWeek = new Date(`${todayKey}T00:00:00.000Z`).getUTCDay();
 	const weekStartKey = getIsoWeekKey(todayKey);
 	const weekEndKey = addDaysUtcKey(weekStartKey, 6);
 	const thirtyDaysStartKey = addDaysUtcKey(todayKey, -29);
 	const queryStartKey = [thirtyDaysStartKey, weekStartKey].sort()[0];
 
-	const [workoutLogs, todayHydrationMl] = await Promise.all([
+	const [
+		plan,
+		allExercises,
+		workoutLogs,
+		todayHydrationMl,
+		existingStats,
+		allRelevantQuests,
+		completedLogs,
+	] = await Promise.all([
+		getCurrentWeeklyPlan(userId, profile.timezone),
+		getCachedExerciseCatalog(),
 		db.workoutLog.findMany({
 			where: {
-				userId: session.user.id,
+				userId,
 				date: { gte: queryStartKey, lte: weekEndKey },
 			},
 			select: {
+				id: true,
 				date: true,
 				completedAt: true,
 				durationSeconds: true,
 				sets: {
+					orderBy: [{ exerciseId: "asc" }, { setNumber: "asc" }],
 					select: {
+						id: true,
+						exerciseId: true,
+						setNumber: true,
 						reps: true,
 						seconds: true,
 						exercise: {
@@ -87,8 +101,66 @@ async function TodayContent({
 				},
 			},
 		}),
-		getDailyHydrationMlForUser(session.user.id, todayKey),
+		getDailyHydrationMlForUser(userId, todayKey),
+		db.userStats.findUnique({
+			where: { userId },
+			select: {
+				totalXp: true,
+				level: true,
+				rankTier: true,
+				tierLevel: true,
+				equippedTitleKey: true,
+				currentStreak: true,
+				longestStreak: true,
+				freezesAvailable: true,
+				freezeWeekKey: true,
+				lastActiveDate: true,
+			},
+		}),
+		db.quest.findMany({
+			where: {
+				userId,
+				OR: [
+					{ date: todayKey, type: { in: ["DAILY", "SIDE"] } },
+					{ date: weekStartKey, type: "WEEKLY" },
+				],
+			},
+			orderBy: [{ type: "asc" }, { createdAt: "asc" }],
+			select: {
+				id: true,
+				type: true,
+				key: true,
+				title: true,
+				target: true,
+				progress: true,
+				status: true,
+				date: true,
+				xpReward: true,
+			},
+		}),
+		db.workoutLog.findMany({
+			where: { userId, completedAt: { not: null } },
+			select: { date: true },
+			orderBy: { date: "asc" },
+		}),
 	]);
+
+	const todaySession =
+		plan?.sessions.find((s) => s.dayOfWeek === todayDayOfWeek) ?? null;
+	const todayLog = workoutLogs.find((log) => log.date === todayKey) ?? null;
+
+	const { stats, quests, weeklyQuests } = await getTodayGamificationReadModel({
+		userId,
+		profile,
+		plan,
+		todayKey,
+		todayDayOfWeek,
+		todayLog,
+		todayHydrationMl,
+		existingStats,
+		allRelevantQuests,
+		completedWorkoutDates: completedLogs.map((l) => l.date),
+	});
 
 	const normalizedWorkouts: HeatmapWorkoutInput[] = workoutLogs.map((log) => ({
 		date: log.date,

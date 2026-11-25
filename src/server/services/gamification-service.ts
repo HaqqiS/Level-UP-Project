@@ -12,6 +12,7 @@ import {
 	buildWeeklyQuestTemplates,
 	canManuallyCompleteQuest,
 	computeMasteryXp,
+	deriveLevelProgressFromPersistedStats,
 	EMPTY_DIRECT_MASTERY_SNAPSHOT,
 	evaluateRankProgress,
 	evaluateStreakHistory,
@@ -595,27 +596,61 @@ export async function syncStatsAndAchievementsConverged(
 	};
 }
 
+export type PreloadedTodayContext = {
+	profile?: {
+		onboardingCompletedAt: Date | null;
+		disclaimerAcceptedAt: Date | null;
+		timezone: string;
+		trainingDays: number[];
+		createdAt: Date;
+		experienceLevel: string;
+	};
+	plan?: Awaited<ReturnType<typeof getCurrentWeeklyPlan>>;
+	todayLog?: {
+		id: string;
+		date: string;
+		completedAt: Date | null;
+		sets: Array<{
+			id: string;
+			exerciseId: string;
+			setNumber: number;
+			reps: number | null;
+			seconds: number | null;
+		}>;
+	} | null;
+};
+
 export async function ensureTodayQuestsAndStats(
 	userId: string,
 	precomputedMastery?: DirectMasterySnapshot,
+	preloaded?: PreloadedTodayContext,
 ) {
-	const profile = await db.profile.findUnique({ where: { userId } });
+	const profile =
+		preloaded?.profile ?? (await db.profile.findUnique({ where: { userId } }));
 	assertCanGeneratePlan(profile);
 	if (!profile) throw new Error("Profile missing");
 
 	const todayKey = getLocalDateKey(profile.timezone);
 	const todayDayOfWeek = new Date(`${todayKey}T00:00:00.000Z`).getUTCDay();
 
+	const hasPreloadedPlan = preloaded !== undefined && "plan" in preloaded;
+	const hasPreloadedTodayLog =
+		preloaded !== undefined && "todayLog" in preloaded;
+
 	const [plan, todayLog] = await Promise.all([
-		getCurrentWeeklyPlan(userId, profile.timezone),
-		db.workoutLog.findUnique({
-			where: { userId_date: { userId, date: todayKey } },
-			include: {
-				sets: {
-					orderBy: [{ exerciseId: "asc" }, { setNumber: "asc" }],
-				},
-			},
-		}),
+		hasPreloadedPlan
+			? Promise.resolve(preloaded.plan ?? null)
+			: getCurrentWeeklyPlan(userId, profile.timezone),
+		hasPreloadedTodayLog
+			? Promise.resolve(preloaded.todayLog ?? null)
+			: db.workoutLog.findUnique({
+					where: { userId_date: { userId, date: todayKey } },
+					include: {
+						sets: {
+							orderBy: [{ exerciseId: "asc" }, { setNumber: "asc" }],
+						},
+					},
+				}),
 	]);
 
 	const todaySession =
@@ -723,6 +758,164 @@ export async function ensureTodayQuestsAndStats(
 		weeklyQuests,
 		achievements,
 		stats,
+	};
+}
+
+export type TodayQuestRow = {
+	id: string;
+	type: "DAILY" | "SIDE" | "WEEKLY";
+	key: string;
+	title: string;
+	target: number;
+	progress: number;
+	status: "PENDING" | "COMPLETED";
+	date: string;
+	xpReward: number;
+};
+
+export type PersistedUserStatsRow = {
+	totalXp: number;
+	level: number;
+	rankTier: RankTier;
+	tierLevel: number;
+	equippedTitleKey: string | null;
+	currentStreak: number;
+	longestStreak: number;
+	freezesAvailable: number;
+	freezeWeekKey: string | null;
+	lastActiveDate: string | null;
+};
+
+/**
+ * Read-only fast path for SSR `GET /today`.
+ * Uses pre-fetched rows from the single parallel DB wave and performs zero writes
+ * when stats, quests, streak, and hydration are already up-to-date.
+ * Automatically falls back to `ensureTodayQuestsAndStats` (reusing preloaded context)
+ * on day/week rollover, brand-new accounts, hydration auto-complete, or drift.
+ */
+export async function getTodayGamificationReadModel(params: {
+	userId: string;
+	profile: NonNullable<PreloadedTodayContext["profile"]>;
+	plan: Awaited<ReturnType<typeof getCurrentWeeklyPlan>>;
+	todayKey: string;
+	todayDayOfWeek: number;
+	todayLog: NonNullable<PreloadedTodayContext["todayLog"]> | null;
+	todayHydrationMl: number;
+	existingStats: PersistedUserStatsRow | null;
+	allRelevantQuests: readonly TodayQuestRow[];
+	completedWorkoutDates: readonly string[];
+}) {
+	const {
+		userId,
+		profile,
+		plan,
+		todayKey,
+		todayDayOfWeek,
+		todayLog,
+		todayHydrationMl,
+		existingStats,
+		allRelevantQuests,
+		completedWorkoutDates,
+	} = params;
+
+	const weekKey = getIsoWeekKey(todayKey);
+	const todaySession =
+		plan?.sessions.find((s) => s.dayOfWeek === todayDayOfWeek) ?? null;
+
+	const dailySideQuests = allRelevantQuests.filter(
+		(q) => q.date === todayKey && (q.type === "DAILY" || q.type === "SIDE"),
+	);
+	const weeklyQuests = allRelevantQuests.filter(
+		(q) => q.date === weekKey && q.type === "WEEKLY",
+	);
+
+	const isRestDay = todaySession ? todaySession.isRest : true;
+	const plannedSetsCount =
+		todaySession && !todaySession.isRest
+			? todaySession.exercises.reduce((sum, ex) => sum + ex.sets, 0)
+			: 0;
+	const mainTemplate = buildDailyQuestTemplates({
+		dateKey: todayKey,
+		isRestDay,
+		sessionFocus: todaySession?.focus ?? null,
+		plannedSetsCount,
+	})[0];
+
+	const existingMainQuest = dailySideQuests.find(
+		(q) => q.key === mainTemplate.key,
+	);
+	const expectedMainProgress = Math.min(
+		mainTemplate.target,
+		todayLog?.sets.length ?? 0,
+	);
+	const hasMainQuestDrift = Boolean(
+		existingMainQuest &&
+			existingMainQuest.status === "PENDING" &&
+			(existingMainQuest.target !== mainTemplate.target ||
+				existingMainQuest.title !== mainTemplate.title ||
+				existingMainQuest.xpReward !== mainTemplate.xpReward ||
+				existingMainQuest.progress !== expectedMainProgress),
+	);
+
+	const hasPendingHydrationCompletion =
+		todayHydrationMl >= 2000 &&
+		dailySideQuests.some(
+			(q) => q.key === "side-hydrate" && q.status === "PENDING",
+		);
+
+	const startDateKey = getLocalDateKey(profile.timezone, profile.createdAt);
+	const streak = evaluateStreakHistory({
+		scheduledDays: profile.trainingDays,
+		completedDates: completedWorkoutDates,
+		startDateKey,
+		todayDateKey: todayKey,
+	});
+
+	const hasStreakDrift = Boolean(
+		existingStats &&
+			(existingStats.currentStreak !== streak.currentStreak ||
+				existingStats.longestStreak !== streak.longestStreak ||
+				existingStats.freezesAvailable !== streak.freezesAvailable ||
+				existingStats.freezeWeekKey !== streak.freezeWeekKey),
+	);
+
+	const needsFullSync =
+		!existingStats ||
+		dailySideQuests.length < 3 ||
+		weeklyQuests.length < 3 ||
+		hasPendingHydrationCompletion ||
+		hasMainQuestDrift ||
+		hasStreakDrift;
+
+	if (needsFullSync) {
+		const ensured = await ensureTodayQuestsAndStats(userId, undefined, {
+			profile,
+			plan,
+			todayLog,
+		});
+		return {
+			stats: ensured.stats,
+			quests: ensured.quests,
+			weeklyQuests: ensured.weeklyQuests,
+		};
+	}
+
+	const levelProgress = deriveLevelProgressFromPersistedStats({
+		totalXp: existingStats.totalXp,
+		rankTier: existingStats.rankTier,
+	});
+
+	return {
+		stats: {
+			...existingStats,
+			rankTier: levelProgress.rankTier,
+			equippedTitle: getTitleForAchievementKey(existingStats.equippedTitleKey),
+			levelProgress,
+			freezeUsedThisWeek: streak.freezeUsedThisWeek,
+			lastFrozenDate: streak.lastFrozenDate,
+		},
+		quests: [...dailySideQuests],
+		weeklyQuests: [...weeklyQuests],
 	};
 }
 

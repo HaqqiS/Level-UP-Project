@@ -1,5 +1,5 @@
 "use server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { requireOnboarded } from "@/lib/auth/session";
 import {
 	MOVEMENT_PATTERNS,
@@ -23,7 +23,9 @@ export async function discoverMoreExercisesAction(
 		pattern,
 	});
 	if (result.ok) {
+		updateTag("exercises-catalog");
 		revalidatePath("/exercises");
+		revalidatePath("/today");
 	}
 	return result;
 }

@@ -5,7 +5,15 @@ const mockDb = vi.hoisted(() => {
 	const dbObj = {
 		quest: {
 			findUnique: vi.fn(),
+			findMany: vi.fn(),
+			createMany: vi.fn(),
 			update: vi.fn(),
+			count: vi.fn(),
+		},
+		dailyWellnessLog: {
+			findUnique: vi.fn(),
+		},
+		dailyCheckin: {
 			count: vi.fn(),
 		},
 		plannedSession: {
@@ -29,6 +37,7 @@ const mockDb = vi.hoisted(() => {
 			upsert: vi.fn(),
 		},
 		workoutLog: {
+			findUnique: vi.fn(),
 			findMany: vi.fn(),
 			count: vi.fn(),
 		},
@@ -65,6 +74,7 @@ vi.mock("@/server/services/weekly-plan-service", () => ({
 
 import {
 	completeSideQuest,
+	getTodayGamificationReadModel,
 	recalculateAndSaveUserStats,
 } from "./gamification-service";
 
@@ -329,5 +339,217 @@ describe("recalculateAndSaveUserStats atomic experience floor", () => {
 		expect(stats.effectiveExperienceLevel).toBe("ADVANCED");
 		expect(mockDb.$transaction).toHaveBeenCalledTimes(1);
 		expect(mockDb.profile.update).not.toHaveBeenCalled();
+	});
+});
+
+describe("getTodayGamificationReadModel fast path & safety fallbacks", () => {
+	const baseProfile = {
+		onboardingCompletedAt: new Date("2026-11-16T00:00:00.000Z"),
+		disclaimerAcceptedAt: new Date("2026-11-16T00:00:00.000Z"),
+		timezone: "Asia/Jakarta",
+		trainingDays: [1, 3, 5],
+		createdAt: new Date("2026-11-19T00:00:00.000Z"),
+		experienceLevel: "BEGINNER",
+	};
+
+	const freshQuests = [
+		{
+			id: "q-d1",
+			type: "DAILY" as const,
+			key: "daily-main",
+			title: "Complete active recovery check-in",
+			target: 1,
+			progress: 0,
+			status: "PENDING" as const,
+			date: "2026-11-19",
+			xpReward: 25,
+		},
+		{
+			id: "q-s1",
+			type: "SIDE" as const,
+			key: "side-hydrate",
+			title: "Drink 2L water today",
+			target: 1,
+			progress: 0,
+			status: "PENDING" as const,
+			date: "2026-11-19",
+			xpReward: 15,
+		},
+		{
+			id: "q-s2",
+			type: "SIDE" as const,
+			key: "side-mobility",
+			title: "2 min wrist & shoulder mobility",
+			target: 1,
+			progress: 0,
+			status: "PENDING" as const,
+			date: "2026-11-19",
+			xpReward: 15,
+		},
+		{
+			id: "q-w1",
+			type: "WEEKLY" as const,
+			key: "weekly-sessions",
+			title: "Complete scheduled workouts this week",
+			target: 3,
+			progress: 0,
+			status: "PENDING" as const,
+			date: "2026-11-16",
+			xpReward: 150,
+		},
+		{
+			id: "q-w2",
+			type: "WEEKLY" as const,
+			key: "weekly-sets",
+			title: "Log target sets this week",
+			target: 27,
+			progress: 0,
+			status: "PENDING" as const,
+			date: "2026-11-16",
+			xpReward: 150,
+		},
+		{
+			id: "q-w3",
+			type: "WEEKLY" as const,
+			key: "weekly-checkin",
+			title: "Complete pre-workout check-ins this week",
+			target: 3,
+			progress: 0,
+			status: "PENDING" as const,
+			date: "2026-11-16",
+			xpReward: 150,
+		},
+	];
+
+	const freshStats = {
+		totalXp: 350,
+		level: 2,
+		rankTier: "F" as const,
+		tierLevel: 2,
+		equippedTitleKey: "first-quest",
+		currentStreak: 0,
+		longestStreak: 0,
+		freezesAvailable: 1,
+		freezeWeekKey: "2026-11-16",
+		lastActiveDate: null,
+	};
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockDb.$transaction.mockImplementation(async (arg: unknown) => {
+			if (typeof arg === "function") {
+				return (arg as (tx: typeof mockDb) => Promise<unknown>)(mockDb);
+			}
+			return Promise.all(arg as Promise<unknown>[]);
+		});
+		setupConvergenceMocks({ totalXp: 350, experienceLevel: "BEGINNER" });
+		mockDb.quest.createMany.mockResolvedValue({ count: 0 });
+		mockDb.quest.findMany.mockResolvedValue(freshQuests.slice(0, 3));
+		mockDb.dailyWellnessLog.findUnique.mockResolvedValue({ hydrationMl: 0 });
+		mockDb.dailyCheckin.count.mockResolvedValue(0);
+	});
+
+	it("returns exact GamificationSummary & quests with ZERO DB calls on warm fast path", async () => {
+		const res = await getTodayGamificationReadModel({
+			userId: "user-1",
+			profile: baseProfile,
+			plan: null,
+			todayKey: "2026-11-19",
+			todayDayOfWeek: 4,
+			todayLog: null,
+			todayHydrationMl: 500,
+			existingStats: freshStats,
+			allRelevantQuests: freshQuests,
+			completedWorkoutDates: [],
+		});
+
+		expect(res.stats.totalXp).toBe(350);
+		expect(res.stats.rankTier).toBe("F");
+		expect(res.stats.equippedTitle).toBe("First Step");
+		expect(res.stats.levelProgress).toMatchObject({
+			rankTier: "F",
+			tierLevel: 2,
+			currentLevelXp: 50,
+			requiredLevelXp: 300,
+			isPromotionReady: false,
+		});
+		expect(res.quests).toHaveLength(3);
+		expect(res.weeklyQuests).toHaveLength(3);
+		expect(mockDb.quest.createMany).not.toHaveBeenCalled();
+		expect(mockDb.userStats.upsert).not.toHaveBeenCalled();
+		expect(mockDb.profile.findUnique).not.toHaveBeenCalled();
+		expect(mockDb.setLog.findMany).not.toHaveBeenCalled();
+	});
+
+	it("falls back to ensureTodayQuestsAndStats on day rollover while reusing preloaded profile/plan/todayLog", async () => {
+		await getTodayGamificationReadModel({
+			userId: "user-1",
+			profile: baseProfile,
+			plan: null,
+			todayKey: "2026-11-19",
+			todayDayOfWeek: 4,
+			todayLog: null,
+			todayHydrationMl: 0,
+			existingStats: freshStats,
+			allRelevantQuests: freshQuests.slice(3), // missing today's 3 daily/side quests
+			completedWorkoutDates: [],
+		});
+
+		expect(mockDb.quest.createMany).toHaveBeenCalled();
+		expect(mockDb.userStats.upsert).toHaveBeenCalled();
+		// Preloaded todayLog was reused — no redundant workoutLog.findUnique
+		expect(mockDb.workoutLog.findUnique).not.toHaveBeenCalled();
+	});
+
+	it("falls back when hydration >= 2000 ml and side-hydrate is still PENDING", async () => {
+		await getTodayGamificationReadModel({
+			userId: "user-1",
+			profile: baseProfile,
+			plan: null,
+			todayKey: "2026-11-19",
+			todayDayOfWeek: 4,
+			todayLog: null,
+			todayHydrationMl: 2250,
+			existingStats: freshStats,
+			allRelevantQuests: freshQuests,
+			completedWorkoutDates: [],
+		});
+
+		expect(mockDb.quest.createMany).toHaveBeenCalled();
+		expect(mockDb.userStats.upsert).toHaveBeenCalled();
+	});
+
+	it("falls back when persisted streak drifted from evaluated streak history", async () => {
+		await getTodayGamificationReadModel({
+			userId: "user-1",
+			profile: baseProfile,
+			plan: null,
+			todayKey: "2026-11-19",
+			todayDayOfWeek: 4,
+			todayLog: null,
+			todayHydrationMl: 0,
+			existingStats: { ...freshStats, currentStreak: 5 }, // stale streak
+			allRelevantQuests: freshQuests,
+			completedWorkoutDates: [],
+		});
+
+		expect(mockDb.userStats.upsert).toHaveBeenCalled();
+	});
+
+	it("falls back when existingStats is null (brand-new onboarded account)", async () => {
+		await getTodayGamificationReadModel({
+			userId: "user-1",
+			profile: baseProfile,
+			plan: null,
+			todayKey: "2026-11-19",
+			todayDayOfWeek: 4,
+			todayLog: null,
+			todayHydrationMl: 0,
+			existingStats: null,
+			allRelevantQuests: freshQuests,
+			completedWorkoutDates: [],
+		});
+
+		expect(mockDb.userStats.upsert).toHaveBeenCalled();
 	});
 });

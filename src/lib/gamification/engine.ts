@@ -333,6 +333,96 @@ export function getLevelProgress(
 	return evaluateRankProgress(totalXp, mastery);
 }
 
+/**
+ * Pure read-only derivation of `LevelProgress` from persisted `UserStats`
+ * (`totalXp` + `rankTier`) without re-scanning `SetLog` / `MasteryBenchmark`.
+ * Matches `evaluateRankProgress` field-for-field for `GamificationBar`
+ * (`promotionGate` is `null` since gate criteria are only shown on `/profile`).
+ */
+export function deriveLevelProgressFromPersistedStats(params: {
+	totalXp: number;
+	rankTier: RankTier;
+}): LevelProgress {
+	const safeXp = Math.max(0, Math.floor(params.totalXp));
+	const { rankTier } = params;
+
+	if (rankTier === "S") {
+		const sEntryXp = tierEntryXp("S");
+		const sXpPerLevel = TIER_XP_PER_LEVEL.S;
+		const xpInS = Math.max(0, safeXp - sEntryXp);
+		const tierLevel = Math.floor(xpInS / sXpPerLevel) + 1;
+		const currentLevelXp = xpInS % sXpPerLevel;
+
+		return {
+			level: 60 + tierLevel,
+			rankTier: "S",
+			tierLevel,
+			totalXp: safeXp,
+			currentLevelXp,
+			requiredLevelXp: sXpPerLevel,
+			progressPercent: Math.min(
+				99,
+				Math.floor((currentLevelXp / sXpPerLevel) * 100),
+			),
+			overflowXp: 0,
+			isPromotionReady: false,
+			nextTier: null,
+			nextTierEntryXp: null,
+			promotionGate: null,
+		};
+	}
+
+	const idx = RANK_TIER_INDEX[rankTier];
+	const entryXp = tierEntryXp(rankTier);
+	const xpPerLevel = TIER_XP_PER_LEVEL[rankTier];
+	const nextTier = RANK_TIERS[idx + 1];
+	const nextEntryXp = tierEntryXp(nextTier);
+
+	if (safeXp >= nextEntryXp) {
+		return {
+			level: idx * LEVELS_PER_TIER + LEVELS_PER_TIER,
+			rankTier,
+			tierLevel: LEVELS_PER_TIER,
+			totalXp: safeXp,
+			currentLevelXp: xpPerLevel,
+			requiredLevelXp: xpPerLevel,
+			progressPercent: 100,
+			overflowXp: safeXp - nextEntryXp,
+			isPromotionReady: true,
+			nextTier,
+			nextTierEntryXp: nextEntryXp,
+			promotionGate: null,
+		};
+	}
+
+	const xpInTier = Math.max(0, safeXp - entryXp);
+	const tierLevel = Math.min(
+		LEVELS_PER_TIER,
+		Math.floor(xpInTier / xpPerLevel) + 1,
+	);
+	const currentLevelXp = xpInTier - (tierLevel - 1) * xpPerLevel;
+	const requiredLevelXp = xpPerLevel;
+	const progressPercent = Math.min(
+		99,
+		Math.floor((currentLevelXp / requiredLevelXp) * 100),
+	);
+
+	return {
+		level: idx * LEVELS_PER_TIER + tierLevel,
+		rankTier,
+		tierLevel,
+		totalXp: safeXp,
+		currentLevelXp,
+		requiredLevelXp,
+		progressPercent,
+		overflowXp: 0,
+		isPromotionReady: false,
+		nextTier,
+		nextTierEntryXp: nextEntryXp,
+		promotionGate: null,
+	};
+}
+
 export function computeSessionXp(
 	completedSetsCount: number,
 	plannedSetsCount: number,

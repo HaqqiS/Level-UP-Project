@@ -1,4 +1,5 @@
 import "server-only";
+import { cacheLife, cacheTag } from "next/cache";
 import { db } from "@/lib/db";
 import "@/lib/env";
 import {
@@ -518,6 +519,45 @@ export async function generateWeeklyPlanForUser(
 	return { ok: true, planId: created.id, fallbackUsed };
 }
 
+export async function getCachedExerciseCatalog() {
+	"use cache";
+	cacheLife("hours");
+	cacheTag("exercises-catalog");
+
+	return db.exercise.findMany({
+		orderBy: [{ pattern: "asc" }, { difficulty: "asc" }, { name: "asc" }],
+		select: {
+			id: true,
+			slug: true,
+			name: true,
+			pattern: true,
+			difficulty: true,
+			equipment: true,
+			measure: true,
+			cues: true,
+			contraindications: true,
+			primaryMuscles: true,
+			secondaryMuscles: true,
+			muscles: {
+				select: {
+					muscleGroup: true,
+					role: true,
+					activationWeight: true,
+				},
+				orderBy: { activationWeight: "desc" },
+			},
+			masteryTargetSets: true,
+			masteryTargetReps: true,
+			masteryTargetSeconds: true,
+			progressionNextId: true,
+			status: true,
+			source: true,
+			sourceUrl: true,
+			license: true,
+		},
+	});
+}
+
 export async function getCurrentPlanPageData(
 	userId: string,
 	timezone?: string,
@@ -527,38 +567,7 @@ export async function getCurrentPlanPageData(
 
 	const [plan, allExercises] = await Promise.all([
 		getCurrentWeeklyPlan(userId, timezone),
-		db.exercise.findMany({
-			orderBy: [{ pattern: "asc" }, { difficulty: "asc" }, { name: "asc" }],
-			select: {
-				id: true,
-				slug: true,
-				name: true,
-				pattern: true,
-				difficulty: true,
-				equipment: true,
-				measure: true,
-				cues: true,
-				contraindications: true,
-				primaryMuscles: true,
-				secondaryMuscles: true,
-				muscles: {
-					select: {
-						muscleGroup: true,
-						role: true,
-						activationWeight: true,
-					},
-					orderBy: { activationWeight: "desc" },
-				},
-				masteryTargetSets: true,
-				masteryTargetReps: true,
-				masteryTargetSeconds: true,
-				progressionNextId: true,
-				status: true,
-				source: true,
-				sourceUrl: true,
-				license: true,
-			},
-		}),
+		getCachedExerciseCatalog(),
 	]);
 
 	return { todayKey, todayDayOfWeek, plan, allExercises };

@@ -6,6 +6,7 @@ import {
 	type CheckinResult,
 	submitDailyCheckinAndAdjust,
 } from "@/server/services/daily-checkin-service";
+import { ensureTodayQuestsAndStats } from "@/server/services/gamification-service";
 import {
 	type GeneratePlanResult,
 	generateWeeklyPlanForUser,
@@ -15,6 +16,7 @@ export async function generateCurrentWeekPlanAction(): Promise<GeneratePlanResul
 	const { session } = await requireOnboarded();
 	const result = await generateWeeklyPlanForUser(session.user.id);
 	if (result.ok) {
+		await ensureTodayQuestsAndStats(session.user.id);
 		revalidatePath("/today");
 		revalidatePath("/calendar");
 	}
@@ -27,6 +29,7 @@ export async function regenerateFallbackWeeklyPlanAction(): Promise<GeneratePlan
 		forceRegenerateFallback: true,
 	});
 	if (result.ok) {
+		await ensureTodayQuestsAndStats(session.user.id);
 		revalidatePath("/today");
 		revalidatePath("/calendar");
 	}
@@ -42,8 +45,10 @@ export async function submitDailyCheckinAction(
 		input,
 	});
 	if (result.ok) {
+		await ensureTodayQuestsAndStats(session.user.id);
 		revalidatePath("/today");
 		revalidatePath("/calendar");
+		revalidatePath("/profile");
 	}
 	return result;
 }

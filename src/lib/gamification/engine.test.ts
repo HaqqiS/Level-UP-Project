@@ -6,6 +6,7 @@ import {
 	computeMasteryXp,
 	computeSessionXp,
 	computeStreakBonusXp,
+	deriveLevelProgressFromPersistedStats,
 	EMPTY_DIRECT_MASTERY_SNAPSHOT,
 	evaluatePromotionGate,
 	evaluateRankProgress,
@@ -602,5 +603,51 @@ describe("canManuallyCompleteQuest", () => {
 				isActiveRecoveryQuest: true,
 			}),
 		).toBe(true);
+	});
+});
+
+describe("deriveLevelProgressFromPersistedStats", () => {
+	it("matches evaluateRankProgress inside F-A tiers, on promotion-ready overflow, post-promotion, and in unlimited S tier", () => {
+		const cases: Array<{
+			totalXp: number;
+			mastery: DirectMasterySnapshot;
+		}> = [
+			{ totalXp: 0, mastery: EMPTY_DIRECT_MASTERY_SNAPSHOT },
+			{ totalXp: 125, mastery: EMPTY_DIRECT_MASTERY_SNAPSHOT },
+			{ totalXp: 2999, mastery: EMPTY_DIRECT_MASTERY_SNAPSHOT },
+			// Banked overflow XP while gated at F-10
+			{ totalXp: 3500, mastery: EMPTY_DIRECT_MASTERY_SNAPSHOT },
+			// Post-promotion in E-2 with exact same 3500 XP
+			{ totalXp: 3500, mastery: FULL_MASTERY },
+			// Mid-tier C progression
+			{ totalXp: 18500, mastery: FULL_MASTERY },
+			// Gated at A-10 with overflow
+			{
+				totalXp: 70000,
+				mastery: {
+					bronzeCount: 16,
+					silverCount: 8,
+					goldCount: 4,
+					maxDifficultyMastered: 6,
+					masteredPatternsCount: 2,
+				},
+			},
+			// Unlimited S tier
+			{ totalXp: 66000, mastery: FULL_MASTERY },
+			{ totalXp: 73750, mastery: FULL_MASTERY },
+		];
+
+		for (const c of cases) {
+			const expected = evaluateRankProgress(c.totalXp, c.mastery);
+			const actual = deriveLevelProgressFromPersistedStats({
+				totalXp: c.totalXp,
+				rankTier: expected.rankTier,
+			});
+
+			expect(actual).toEqual({
+				...expected,
+				promotionGate: null,
+			});
+		}
 	});
 });
