@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildDailyQuestTemplates,
 	buildWeeklyQuestTemplates,
+	canManuallyCompleteQuest,
 	computeMasteryXp,
 	computeSessionXp,
 	computeStreakBonusXp,
@@ -543,5 +544,63 @@ describe("buildWeeklyQuestTemplates", () => {
 		expect(weekly[0]?.target).toBe(4);
 		expect(weekly[1]?.target).toBe(36);
 		expect(weekly[2]?.target).toBe(3);
+	});
+});
+
+describe("canManuallyCompleteQuest", () => {
+	it("rejects WEEKLY quests unconditionally", () => {
+		expect(
+			canManuallyCompleteQuest({
+				type: "WEEKLY",
+				hasNonRestPlannedSession: false,
+				isActiveRecoveryQuest: true,
+			}),
+		).toBe(false);
+		expect(
+			canManuallyCompleteQuest({
+				type: "WEEKLY",
+				hasNonRestPlannedSession: true,
+				isActiveRecoveryQuest: false,
+			}),
+		).toBe(false);
+	});
+
+	it("allows SIDE quests on both rest and training days", () => {
+		expect(
+			canManuallyCompleteQuest({
+				type: "SIDE",
+				hasNonRestPlannedSession: false,
+			}),
+		).toBe(true);
+		expect(
+			canManuallyCompleteQuest({
+				type: "SIDE",
+				hasNonRestPlannedSession: true,
+			}),
+		).toBe(true);
+	});
+
+	it("allows DAILY quests only on rest days with active-recovery shape", () => {
+		expect(
+			canManuallyCompleteQuest({
+				type: "DAILY",
+				hasNonRestPlannedSession: true,
+				isActiveRecoveryQuest: true,
+			}),
+		).toBe(false);
+		expect(
+			canManuallyCompleteQuest({
+				type: "DAILY",
+				hasNonRestPlannedSession: false,
+				isActiveRecoveryQuest: false,
+			}),
+		).toBe(false);
+		expect(
+			canManuallyCompleteQuest({
+				type: "DAILY",
+				hasNonRestPlannedSession: false,
+				isActiveRecoveryQuest: true,
+			}),
+		).toBe(true);
 	});
 });

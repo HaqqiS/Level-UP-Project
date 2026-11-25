@@ -3,6 +3,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import type { ExperienceLevel } from "@/lib/exercises/eligibility";
+import {
+	type RankTier,
+	resolveEffectiveExperienceLevel,
+} from "@/lib/gamification/engine";
 import {
 	type OnboardingInput,
 	OnboardingSchema,
@@ -99,8 +104,19 @@ export async function completeOnboarding(
 			}
 		}
 
+		const existingStats = await tx.userStats.findUnique({
+			where: { userId },
+			select: { rankTier: true },
+		});
+		const effectiveExperienceLevel = existingStats
+			? resolveEffectiveExperienceLevel(
+					d.experienceLevel as ExperienceLevel,
+					existingStats.rankTier as RankTier,
+				)
+			: d.experienceLevel;
+
 		const profileData = {
-			experienceLevel: d.experienceLevel,
+			experienceLevel: effectiveExperienceLevel,
 			maxPushups: d.maxPushups ?? null,
 			maxPullups: d.maxPullups ?? null,
 			plankSeconds: d.plankSeconds ?? null,

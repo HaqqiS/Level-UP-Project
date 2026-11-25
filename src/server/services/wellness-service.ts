@@ -23,10 +23,7 @@ import {
 	slugifyWellnessItemName,
 } from "@/lib/wellness/cycle-and-wellness";
 import { diffDaysUtc } from "@/lib/wellness/cycle-engine";
-import {
-	ensureTodayQuestsAndStats,
-	syncHydrationQuestForDate,
-} from "@/server/services/gamification-service";
+import { ensureTodayQuestsAndStats } from "@/server/services/gamification-service";
 import { getLocalDateKey } from "@/server/services/weekly-plan-service";
 
 export type CalendarDayLogView = {
@@ -733,10 +730,7 @@ export async function saveDailyWellnessLogForUser(
 		d.date === getLocalDateKey(profile.timezone) &&
 		(hydrationMl ?? 0) >= 2000
 	) {
-		const hydrationCompleted = await syncHydrationQuestForDate(userId, d.date);
-		if (hydrationCompleted) {
-			await ensureTodayQuestsAndStats(userId);
-		}
+		await ensureTodayQuestsAndStats(userId);
 	}
 
 	return {
@@ -987,4 +981,30 @@ export async function deleteManualMenstrualCycle(
 	});
 
 	return { ok: true as const };
+}
+
+export async function getDailyHydrationMlForUser(
+	userId: string,
+	dateKey: string,
+): Promise<number> {
+	const log = await db.dailyWellnessLog.findUnique({
+		where: { userId_date: { userId, date: dateKey } },
+		select: { hydrationMl: true },
+	});
+	return log?.hydrationMl ?? 0;
+}
+
+export async function getTodayHydrationMlForUser(
+	userId: string,
+	timezone?: string,
+): Promise<number> {
+	let tz = timezone;
+	if (!tz) {
+		const profile = await db.profile.findUnique({
+			where: { userId },
+			select: { timezone: true },
+		});
+		tz = profile?.timezone ?? "Asia/Jakarta";
+	}
+	return getDailyHydrationMlForUser(userId, getLocalDateKey(tz));
 }

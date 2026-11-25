@@ -9,11 +9,11 @@ import {
 export async function equipTitleAction(
 	achievementKey: string | null,
 ): Promise<EquipTitleResult> {
+	const { session } = await requireOnboarded();
 	if (achievementKey !== null && typeof achievementKey !== "string") {
 		return { ok: false, reason: "invalid" };
 	}
 
-	const { session } = await requireOnboarded();
 	const result = await equipTitleForUser({
 		userId: session.user.id,
 		achievementKey,

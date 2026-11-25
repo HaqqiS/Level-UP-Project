@@ -236,12 +236,18 @@ export async function logExerciseSet(params: {
 		};
 	}
 
-	await ensureTodayQuestsAndStats(userId);
+	const xpBeforeAgg = await db.xpEvent.aggregate({
+		where: { userId },
+		_sum: { amount: true },
+	});
+	const xpBefore = xpBeforeAgg._sum.amount ?? 0;
+
+	const ensured = await ensureTodayQuestsAndStats(userId);
 	return {
 		ok: true,
 		workoutLogId: workoutLog.id,
 		sessionCompleted: Boolean(workoutLog.completedAt),
-		xpEarned: 0,
+		xpEarned: Math.max(0, ensured.stats.totalXp - xpBefore),
 	};
 }
 
@@ -351,7 +357,7 @@ export async function syncOfflineWorkoutBatch(params: {
 		...touchedWorkoutLogIds.keys(),
 	]);
 
-	for (const dateKey of datesToCheck) {
+	for (const dateKey of [...datesToCheck].sort()) {
 		const log = await db.workoutLog.findUnique({
 			where: { userId_date: { userId, date: dateKey } },
 			include: {

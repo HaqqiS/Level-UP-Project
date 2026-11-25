@@ -523,6 +523,20 @@ const SIDE_QUEST_POOL: readonly { key: string; title: string }[] = [
 	{ key: "side-walk", title: "10 min recovery walk" },
 ];
 
+export function canManuallyCompleteQuest(params: {
+	type: "DAILY" | "SIDE" | "WEEKLY";
+	hasNonRestPlannedSession: boolean;
+	isActiveRecoveryQuest?: boolean;
+}): boolean {
+	if (params.type === "SIDE") return true;
+	if (params.type === "DAILY") {
+		return (
+			!params.hasNonRestPlannedSession && (params.isActiveRecoveryQuest ?? true)
+		);
+	}
+	return false;
+}
+
 export function buildDailyQuestTemplates(params: {
 	dateKey: string;
 	isRestDay: boolean;

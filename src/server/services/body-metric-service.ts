@@ -11,10 +11,7 @@ import {
 	type WeightEntryPoint,
 } from "@/lib/body/metrics";
 import { db } from "@/lib/db";
-import {
-	recalculateAndSaveUserStats,
-	syncAchievementsForUser,
-} from "@/server/services/gamification-service";
+import { syncStatsAndAchievementsConverged } from "@/server/services/gamification-service";
 import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 import { getLocalDateKey } from "@/server/services/weekly-plan-service";
 
@@ -124,9 +121,7 @@ export async function logWeightForUser(params: {
 		select: { id: true },
 	});
 
-	const stats = await recalculateAndSaveUserStats(params.userId);
-	await syncAchievementsForUser(params.userId, stats);
-	await recalculateAndSaveUserStats(params.userId);
+	await syncStatsAndAchievementsConverged(params.userId);
 
 	return { ok: true, id: created.id };
 }
@@ -155,9 +150,7 @@ export async function logMeasurementForUser(params: {
 		select: { id: true },
 	});
 
-	const stats = await recalculateAndSaveUserStats(params.userId);
-	await syncAchievementsForUser(params.userId, stats);
-	await recalculateAndSaveUserStats(params.userId);
+	await syncStatsAndAchievementsConverged(params.userId);
 
 	return { ok: true, id: created.id };
 }
@@ -207,9 +200,7 @@ export async function logMeasurementsBatchForUser(params: {
 		),
 	);
 
-	const stats = await recalculateAndSaveUserStats(params.userId);
-	await syncAchievementsForUser(params.userId, stats);
-	await recalculateAndSaveUserStats(params.userId);
+	await syncStatsAndAchievementsConverged(params.userId);
 
 	return { ok: true, ids: createdRows.map((row) => row.id) };
 }

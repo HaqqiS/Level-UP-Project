@@ -41,6 +41,9 @@ export async function completeQuestAction(
 	questId: string,
 ): Promise<CompleteQuestResult> {
 	const { session } = await requireOnboarded();
+	if (typeof questId !== "string" || !questId.trim()) {
+		return { ok: false, reason: "not_found" };
+	}
 	const result = await completeSideQuest({
 		userId: session.user.id,
 		questId,

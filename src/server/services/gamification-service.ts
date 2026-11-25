@@ -10,12 +10,12 @@ import {
 import {
 	buildDailyQuestTemplates,
 	buildWeeklyQuestTemplates,
+	canManuallyCompleteQuest,
 	computeMasteryXp,
 	EMPTY_DIRECT_MASTERY_SNAPSHOT,
 	evaluateRankProgress,
 	evaluateStreakHistory,
 	getIsoWeekKey,
-	RANK_TIER_INDEX,
 	type RankTier,
 	resolveEffectiveExperienceLevel,
 } from "@/lib/gamification/engine";
@@ -27,6 +27,7 @@ import { assertCanGeneratePlan } from "@/server/services/plan-gate";
 import {
 	getCurrentWeeklyPlan,
 	getLocalDateKey,
+	getWeekStartUtc,
 } from "@/server/services/weekly-plan-service";
 
 function addDaysKey(dateKey: string, days: number): string {
@@ -178,7 +179,7 @@ export async function recalculateAndSaveUserStats(
 		}),
 		db.userStats.findUnique({
 			where: { userId },
-			select: { rankTier: true, equippedTitleKey: true },
+			select: { equippedTitleKey: true },
 		}),
 		db.xpEvent.aggregate({
 			where: { userId },
@@ -211,54 +212,55 @@ export async function recalculateAndSaveUserStats(
 			!getTitleForAchievementKey(existingStats.equippedTitleKey),
 	);
 
-	const stats = await db.userStats.upsert({
-		where: { userId },
-		create: {
-			userId,
-			totalXp,
-			level: levelProgress.level,
-			rankTier: levelProgress.rankTier,
-			tierLevel: levelProgress.tierLevel,
-			currentStreak: streak.currentStreak,
-			longestStreak: streak.longestStreak,
-			freezesAvailable: streak.freezesAvailable,
-			freezeWeekKey: streak.freezeWeekKey,
-			lastActiveDate: streak.lastActiveDate,
-		},
-		update: {
-			totalXp,
-			level: levelProgress.level,
-			rankTier: levelProgress.rankTier,
-			tierLevel: levelProgress.tierLevel,
-			...(hasInvalidTitleKey ? { equippedTitleKey: null } : {}),
-			currentStreak: streak.currentStreak,
-			longestStreak: streak.longestStreak,
-			freezesAvailable: streak.freezesAvailable,
-			freezeWeekKey: streak.freezeWeekKey,
-			lastActiveDate: streak.lastActiveDate,
-		},
-	});
-
-	let effectiveExperienceLevel = (profile?.experienceLevel ??
+	const currentExperienceLevel = (profile?.experienceLevel ??
 		"NONE") as ExperienceLevel;
-	if (
-		profile &&
-		(!existingStats ||
-			RANK_TIER_INDEX[levelProgress.rankTier] >
-				RANK_TIER_INDEX[existingStats.rankTier as RankTier])
-	) {
-		const upgraded = resolveEffectiveExperienceLevel(
-			effectiveExperienceLevel,
-			levelProgress.rankTier,
-		);
-		if (upgraded !== effectiveExperienceLevel) {
-			await db.profile.update({
+	const effectiveExperienceLevel = profile
+		? resolveEffectiveExperienceLevel(
+				currentExperienceLevel,
+				levelProgress.rankTier,
+			)
+		: currentExperienceLevel;
+	const shouldUpgradeExperience =
+		Boolean(profile) && effectiveExperienceLevel !== currentExperienceLevel;
+
+	const stats = await db.$transaction(async (tx) => {
+		const upsertedStats = await tx.userStats.upsert({
+			where: { userId },
+			create: {
+				userId,
+				totalXp,
+				level: levelProgress.level,
+				rankTier: levelProgress.rankTier,
+				tierLevel: levelProgress.tierLevel,
+				currentStreak: streak.currentStreak,
+				longestStreak: streak.longestStreak,
+				freezesAvailable: streak.freezesAvailable,
+				freezeWeekKey: streak.freezeWeekKey,
+				lastActiveDate: streak.lastActiveDate,
+			},
+			update: {
+				totalXp,
+				level: levelProgress.level,
+				rankTier: levelProgress.rankTier,
+				tierLevel: levelProgress.tierLevel,
+				...(hasInvalidTitleKey ? { equippedTitleKey: null } : {}),
+				currentStreak: streak.currentStreak,
+				longestStreak: streak.longestStreak,
+				freezesAvailable: streak.freezesAvailable,
+				freezeWeekKey: streak.freezeWeekKey,
+				lastActiveDate: streak.lastActiveDate,
+			},
+		});
+
+		if (shouldUpgradeExperience) {
+			await tx.profile.update({
 				where: { userId },
-				data: { experienceLevel: upgraded },
+				data: { experienceLevel: effectiveExperienceLevel },
 			});
-			effectiveExperienceLevel = upgraded;
 		}
-	}
+
+		return upsertedStats;
+	});
 
 	return {
 		...stats,
@@ -562,7 +564,7 @@ export async function syncAchievementsForUser(
  * Bounded 2-pass convergence so badge XP unlocked on pass 1 (e.g. mastery or rank badges)
  * updates stats/level/rank and cascades at most one additional pass without unbounded loops.
  */
-async function syncStatsAndAchievementsConverged(
+export async function syncStatsAndAchievementsConverged(
 	userId: string,
 	precomputedMastery?: DirectMasterySnapshot,
 ) {
@@ -736,7 +738,7 @@ export async function getAchievementsForUser(userId: string) {
 
 export type CompleteQuestResult =
 	| { ok: true; xpAwarded: number }
-	| { ok: false; reason: "not_found" | "already_completed" };
+	| { ok: false; reason: "not_found" | "already_completed" | "not_allowed" };
 
 export async function completeSideQuest(params: {
 	userId: string;
@@ -750,6 +752,42 @@ export async function completeSideQuest(params: {
 	}
 	if (quest.status === "COMPLETED") {
 		return { ok: false, reason: "already_completed" };
+	}
+	if (quest.type === "WEEKLY") {
+		return { ok: false, reason: "not_allowed" };
+	}
+
+	if (quest.type === "DAILY") {
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(quest.date)) {
+			return { ok: false, reason: "not_allowed" };
+		}
+		const weekStart = getWeekStartUtc(quest.date);
+		const dayOfWeek = new Date(`${quest.date}T00:00:00.000Z`).getUTCDay();
+		const plannedSession = await db.plannedSession.findFirst({
+			where: {
+				dayOfWeek,
+				weeklyPlan: {
+					userId: params.userId,
+					weekStart,
+				},
+			},
+			select: { isRest: true },
+		});
+		const hasNonRestPlannedSession = Boolean(
+			plannedSession && !plannedSession.isRest,
+		);
+		const isActiveRecoveryQuest = quest.target === 1 && quest.xpReward <= 25;
+		if (
+			!canManuallyCompleteQuest({
+				type: quest.type,
+				hasNonRestPlannedSession,
+				isActiveRecoveryQuest,
+			})
+		) {
+			return { ok: false, reason: "not_allowed" };
+		}
+	} else if (quest.type !== "SIDE") {
+		return { ok: false, reason: "not_allowed" };
 	}
 
 	await db.$transaction([
