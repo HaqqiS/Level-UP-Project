@@ -1,0 +1,48 @@
+name: Reminders Cron
+
+on:
+  schedule:
+    # Every 30 minutes (UTC). Training and H-2 period reminders evaluate a
+    # 60-minute local-time window and guard idempotency per user/day in Postgres.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reminders-cron
+  cancel-in-progress: false
+
+jobs:
+  dispatch-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger /api/cron/reminders
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice::APP_URL or CRON_SECRET repository secret is not configured; skipping reminder dispatch (safe if using an external scheduler such as cron-job.org)."
+            exit 0
+          fi
+
+          BASE_URL="${APP_URL%/}"
+          RESPONSE_FILE="$(mktemp)"
+          HTTP_STATUS="$(
+            curl -sS -o "$RESPONSE_FILE" -w "%{http_code}" \
+              --max-time 30 \
+              -X GET \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              "${BASE_URL}/api/cron/reminders"
+          )"
+
+          echo "HTTP status: ${HTTP_STATUS}"
+          cat "$RESPONSE_FILE"
+          echo ""
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "::error::/api/cron/reminders returned HTTP ${HTTP_STATUS}"
+            exit 1
+          fi
