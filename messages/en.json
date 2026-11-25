@@ -521,6 +521,7 @@
 		"installTitle": "Install Calisthenics Quest",
 		"installDescription": "Add to your home screen for quick launches and offline workout logging.",
 		"installButton": "Install app",
+		"iosInstallHint": "Tap the Share button in Safari, then choose \"Add to Home Screen\".",
 		"dismiss": "Not now"
 	},
 	"achievements": {

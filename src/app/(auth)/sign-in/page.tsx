@@ -1,4 +1,5 @@
 import { Dumbbell } from "lucide-react";
+import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { GoogleSignInButton } from "@/components/features/auth/google-sign-in-button";
@@ -11,11 +12,21 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { getSession } from "@/lib/auth/session";
+
+async function RedirectIfAuthenticated() {
+	const session = await getSession();
+	if (session) redirect("/today");
+	return null;
+}
 
 export default function SignInPage() {
 	const t = useTranslations();
 	return (
 		<main className="flex min-h-dvh items-center justify-center p-4">
+			<Suspense fallback={null}>
+				<RedirectIfAuthenticated />
+			</Suspense>
 			<Card className="w-full max-w-sm">
 				<CardHeader className="justify-items-center text-center">
 					<Badge variant="primary-light" size="xl" radius="full">

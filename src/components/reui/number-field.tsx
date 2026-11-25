@@ -20,9 +20,9 @@ const numberFieldGroupVariants = cva(
   {
     variants: {
       size: {
-        sm: "h-7 text-sm",
-        default: "h-8 text-sm",
-        lg: "h-9 text-sm",
+        sm: "h-7 text-base md:text-sm",
+        default: "h-8 text-base md:text-sm",
+        lg: "h-9 text-base md:text-sm",
       },
     },
     defaultVariants: {

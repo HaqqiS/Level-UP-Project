@@ -1,6 +1,15 @@
 /// <reference lib="webworker" />
 import { defaultCache } from "@serwist/next/worker";
-import { type PrecacheEntry, Serwist, type SerwistGlobalConfig } from "serwist";
+import {
+	ExpirationPlugin,
+	NetworkFirst,
+	NetworkOnly,
+	type PrecacheEntry,
+	type RuntimeCaching,
+	Serwist,
+	type SerwistGlobalConfig,
+	type SerwistPlugin,
+} from "serwist";
 
 declare global {
 	interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -10,12 +19,73 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+/**
+ * Prevents caching HTTP redirects or streamed Next.js PPR `NEXT_REDIRECT`
+ * responses (which return HTTP 200 with a `<meta id="__next-page-redirect">`
+ * payload) so stale auth redirects can never be served from Cache Storage.
+ */
+const skipNextRedirectPlugin: SerwistPlugin = {
+	cacheWillUpdate: async ({ response }) => {
+		if (response?.status !== 200 || response.redirected) {
+			return null;
+		}
+		const contentType = response.headers.get("content-type") ?? "";
+		if (
+			contentType.includes("text/html") ||
+			contentType.includes("text/x-component")
+		) {
+			try {
+				const text = await response.clone().text();
+				if (
+					text.includes("NEXT_REDIRECT") ||
+					text.includes("__next-page-redirect")
+				) {
+					return null;
+				}
+			} catch {
+				return null;
+			}
+		}
+		return response;
+	},
+};
+
+const authAndNavigationCache: RuntimeCaching[] = [
+	{
+		matcher: ({ sameOrigin, url: { pathname } }) =>
+			sameOrigin &&
+			(pathname === "/sign-in" ||
+				pathname.startsWith("/sign-in/") ||
+				pathname === "/onboarding" ||
+				pathname.startsWith("/onboarding/") ||
+				pathname.startsWith("/api/auth/")),
+		handler: new NetworkOnly({ networkTimeoutSeconds: 10 }),
+	},
+	{
+		matcher: ({ request, sameOrigin, url: { pathname } }) =>
+			sameOrigin &&
+			request.mode === "navigate" &&
+			!pathname.startsWith("/api/"),
+		handler: new NetworkFirst({
+			cacheName: "pages",
+			networkTimeoutSeconds: 10,
+			plugins: [
+				skipNextRedirectPlugin,
+				new ExpirationPlugin({
+					maxEntries: 32,
+					maxAgeSeconds: 86400,
+				}),
+			],
+		}),
+	},
+];
+
 const serwist = new Serwist({
 	precacheEntries: self.__SW_MANIFEST,
 	skipWaiting: true,
 	clientsClaim: true,
 	navigationPreload: true,
-	runtimeCaching: defaultCache,
+	runtimeCaching: [...authAndNavigationCache, ...defaultCache],
 });
 
 serwist.addEventListeners();

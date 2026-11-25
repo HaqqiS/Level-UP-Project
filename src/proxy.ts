@@ -12,7 +12,15 @@ const PROTECTED = [
 	"/onboarding",
 ];
 
-/** Optimistic check only (no DB). Real auth is enforced server-side. */
+/**
+ * Optimistic check only (no DB). Real auth is enforced server-side.
+ *
+ * IMPORTANT: Do NOT redirect `/sign-in` -> `/today` here based on cookie presence.
+ * If the browser holds a stale/expired/revoked session cookie, `/today` will
+ * fail `auth.api.getSession()` and redirect back to `/sign-in`, causing an
+ * infinite redirect loop. Valid-session redirects from `/sign-in` are handled
+ * server-side in `src/app/(auth)/sign-in/page.tsx` via `getSession()`.
+ */
 export function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 	const hasSession = Boolean(getSessionCookie(request));
@@ -21,9 +29,6 @@ export function proxy(request: NextRequest) {
 		const url = new URL("/sign-in", request.url);
 		url.searchParams.set("next", pathname);
 		return NextResponse.redirect(url);
-	}
-	if (hasSession && pathname === "/sign-in") {
-		return NextResponse.redirect(new URL("/today", request.url));
 	}
 	return NextResponse.next();
 }
