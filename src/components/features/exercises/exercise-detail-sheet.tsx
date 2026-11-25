@@ -34,6 +34,7 @@ import {
 import { buildProgressionChain } from "@/lib/exercises/eligibility";
 import { computeExerciseMuscleMap } from "@/lib/exercises/muscle-heatmap";
 import { normalizeMuscleGroupId } from "@/lib/exercises/muscles";
+import { computeMasteryXp } from "@/lib/gamification/engine";
 import type {
 	MasteryTierValue,
 	SkillEdgeRequirement,
@@ -236,7 +237,7 @@ export function ExerciseDetailSheet({
 					)}
 
 					{mastery && (
-						<section className="space-y-2.5">
+						<section className="flex flex-col gap-2.5">
 							<div className="flex items-center justify-between gap-2">
 								<h3 className="text-sm font-semibold">
 									{t("exercises.skillTree.masteryTitle")}
@@ -244,7 +245,6 @@ export function ExerciseDetailSheet({
 								{mastery.highestTier !== "NONE" && (
 									<Badge
 										variant="outline"
-										size="sm"
 										className={TIER_BADGE_CLASS[mastery.highestTier]}
 									>
 										{t(`exercises.skillTree.tiers.${mastery.highestTier}`)}
@@ -253,7 +253,7 @@ export function ExerciseDetailSheet({
 							</div>
 
 							{hasLegacyTiers ? (
-								<div className="space-y-2">
+								<div className="flex flex-col gap-2">
 									{mastery.tiers.map((tier, idx) => {
 										const prevAchieved =
 											idx === 0
@@ -271,20 +271,37 @@ export function ExerciseDetailSheet({
 													tier.minConsecutiveSessions,
 												);
 										const barValue = tier.achieved ? 100 : tier.progressPercent;
+										const masteryXp = computeMasteryXp(
+											exercise.difficulty,
+											tier.tier,
+										);
 
 										return (
 											<div
 												key={tier.tier}
-												className="space-y-2 rounded-2xl bg-muted/50 p-3"
+												className="flex flex-col gap-2 rounded-2xl bg-muted/50 p-3"
 											>
 												<div className="flex flex-wrap items-center justify-between gap-2">
-													<Badge
-														variant="outline"
-														size="sm"
-														className={TIER_BADGE_CLASS[tier.tier]}
-													>
-														{t(`exercises.skillTree.tiers.${tier.tier}`)}
-													</Badge>
+													<div className="flex flex-wrap items-center gap-1.5">
+														<Badge
+															variant="outline"
+															className={TIER_BADGE_CLASS[tier.tier]}
+														>
+															{t(`exercises.skillTree.tiers.${tier.tier}`)}
+														</Badge>
+														<Badge
+															variant={
+																displayState === "achieved"
+																	? "success-light"
+																	: "secondary"
+															}
+															className="tabular-nums"
+														>
+															{t("exercises.skillTree.masteryXpReward", {
+																xp: masteryXp,
+															})}
+														</Badge>
+													</div>
 													<Badge
 														variant={
 															displayState === "achieved"
@@ -295,11 +312,14 @@ export function ExerciseDetailSheet({
 																		? "primary-light"
 																		: "secondary"
 														}
-														size="xs"
 													>
 														{(displayState === "achieved" ||
-															displayState === "implied") && <Check />}
-														{displayState === "locked" && <Lock />}
+															displayState === "implied") && (
+															<Check aria-hidden="true" />
+														)}
+														{displayState === "locked" && (
+															<Lock aria-hidden="true" />
+														)}
 														{t(
 															displayState === "achieved"
 																? "exercises.skillTree.tierAchieved"
@@ -312,24 +332,26 @@ export function ExerciseDetailSheet({
 													</Badge>
 												</div>
 
-												<Progress value={barValue}>
-													<ProgressLabel className="text-xs">
-														{tier.measure === "SECONDS"
-															? t("exercises.skillTree.benchmarkSeconds", {
-																	sets: tier.targetSets,
-																	val: tier.targetValue,
-																})
-															: t("exercises.skillTree.benchmarkReps", {
-																	sets: tier.targetSets,
-																	val: tier.targetValue,
-																})}{" "}
-														·{" "}
-														{t("exercises.skillTree.setsProgress", {
-															done: tier.bestSetsInSession,
-															target: tier.targetSets,
-														})}
-													</ProgressLabel>
-													<ProgressValue className="text-xs" />
+												<Progress value={barValue} className="gap-2">
+													<div className="flex w-full items-baseline justify-between gap-2">
+														<ProgressLabel className="min-w-0 text-xs tabular-nums">
+															{tier.measure === "SECONDS"
+																? t("exercises.skillTree.benchmarkSeconds", {
+																		sets: tier.targetSets,
+																		val: tier.targetValue,
+																	})
+																: t("exercises.skillTree.benchmarkReps", {
+																		sets: tier.targetSets,
+																		val: tier.targetValue,
+																	})}{" "}
+															·{" "}
+															{t("exercises.skillTree.setsProgress", {
+																done: tier.bestSetsInSession,
+																target: tier.targetSets,
+															})}
+														</ProgressLabel>
+														<ProgressValue className="ml-0 shrink-0 text-xs tabular-nums" />
+													</div>
 												</Progress>
 
 												{(tier.minConsecutiveSessions > 1 ||
@@ -337,7 +359,10 @@ export function ExerciseDetailSheet({
 													Boolean(tier.tempo)) && (
 													<div className="flex flex-wrap items-center gap-1.5">
 														{tier.minConsecutiveSessions > 1 && (
-															<Badge variant="secondary" size="xs">
+															<Badge
+																variant="secondary"
+																className="tabular-nums"
+															>
 																{t("exercises.skillTree.consecutiveSessions", {
 																	done: consecutiveDone,
 																	required: tier.minConsecutiveSessions,
@@ -345,14 +370,14 @@ export function ExerciseDetailSheet({
 															</Badge>
 														)}
 														{tier.maxRpe != null && (
-															<Badge variant="outline" size="xs">
+															<Badge variant="outline" className="tabular-nums">
 																{t("exercises.skillTree.maxRpeLimit", {
 																	rpe: tier.maxRpe,
 																})}
 															</Badge>
 														)}
 														{tier.tempo && (
-															<Badge variant="outline" size="xs">
+															<Badge variant="outline">
 																{t("exercises.skillTree.tempoLabel", {
 																	tempo: tier.tempo,
 																})}
@@ -715,11 +740,11 @@ export function ExerciseDetailSheet({
 								<a
 									href={exercise.sourceUrl}
 									target="_blank"
-									rel="noreferrer"
+									rel="noopener noreferrer"
 									aria-label={exercise.name}
 									className="inline-flex items-center hover:text-foreground"
 								>
-									<ExternalLink className="size-3" />
+									<ExternalLink aria-hidden="true" className="size-3" />
 								</a>
 							)}
 						</p>

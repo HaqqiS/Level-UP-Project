@@ -41,6 +41,7 @@ export function TrainHubTabs({
 	allExercises,
 	quests,
 	weeklyQuests,
+	todayHydrationMl = 0,
 	heatmapData,
 	bodyMapGender = "male",
 }: {
@@ -54,6 +55,7 @@ export function TrainHubTabs({
 	allExercises: readonly ExerciseItem[];
 	quests: QuestItemView[];
 	weeklyQuests: QuestItemView[];
+	todayHydrationMl?: number;
 	heatmapData: MuscleHeatmapModeData;
 	bodyMapGender?: BodyMapGender;
 }) {
@@ -97,22 +99,26 @@ export function TrainHubTabs({
 						</CardContent>
 					</Card>
 				) : (
-					<TodaySessionCard
-						session={todaySession}
-						allExercises={allExercises}
-						defaultMinutes={defaultMinutes}
-						isCompleted={Boolean(todayLog?.completedAt)}
-						hasStarted={(todayLog?.sets.length ?? 0) > 0}
-						onOpenLogger={() => setTab("log")}
-						onOpenPlan={() => setTab("plan")}
-					/>
+					<div id="today-session">
+						<TodaySessionCard
+							session={todaySession}
+							allExercises={allExercises}
+							defaultMinutes={defaultMinutes}
+							isCompleted={Boolean(todayLog?.completedAt)}
+							hasStarted={(todayLog?.sets.length ?? 0) > 0}
+							onOpenLogger={() => setTab("log")}
+							onOpenPlan={() => setTab("plan")}
+						/>
+					</div>
 				)}
 
 				<DailyQuestsCard
 					quests={quests}
 					weeklyQuests={weeklyQuests}
 					isRestDay={isRestDay}
+					todayHydrationMl={todayHydrationMl}
 					onOpenLogger={() => setTab("log")}
+					onOpenPlan={() => setTab("plan")}
 				/>
 
 				<MuscleHeatmapCard data={heatmapData} gender={bodyMapGender} />

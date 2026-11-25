@@ -1,5 +1,7 @@
 "use client";
 
+// Project installs framer-motion (not motion/react); root MotionConfig honors OS reduced-motion.
+import { MotionConfig } from "framer-motion";
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { type ComponentProps, useEffect } from "react";
 
@@ -34,9 +36,11 @@ export function ThemeProvider({
 	...props
 }: ComponentProps<typeof NextThemesProvider>) {
 	return (
-		<NextThemesProvider {...props}>
-			<ThemeColorSync />
-			{children}
-		</NextThemesProvider>
+		<MotionConfig reducedMotion="user">
+			<NextThemesProvider {...props}>
+				<ThemeColorSync />
+				{children}
+			</NextThemesProvider>
+		</MotionConfig>
 	);
 }

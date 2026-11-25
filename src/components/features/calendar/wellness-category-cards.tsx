@@ -30,7 +30,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -799,9 +799,10 @@ export function WellnessCategoryCards({
 						</div>
 
 						<Field>
-							<FieldLabel>{t("moodTitle")}</FieldLabel>
+							<FieldTitle id="wellness-mood-label">{t("moodTitle")}</FieldTitle>
 							<ToggleGroup
 								multiple
+								aria-labelledby="wellness-mood-label"
 								variant="outline"
 								className="w-full flex-wrap"
 								value={activeDraft.moodTags}

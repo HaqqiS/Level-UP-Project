@@ -12,6 +12,7 @@ import {
 import { ProfileSettingsTab } from "@/components/features/profile/profile-settings-tab";
 import { InstallPromptBanner } from "@/components/features/pwa/install-prompt-banner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { requireOnboarded } from "@/lib/auth/session";
 import { getBodyTrackingData } from "@/server/services/body-metric-service";
 import { getAchievementsForUser } from "@/server/services/gamification-service";
@@ -130,11 +131,21 @@ export default async function ProfilePage({
 			<h1 className="font-semibold">{t("title")}</h1>
 			<Suspense
 				fallback={
-					<Card size="sm">
-						<CardContent>
-							<div className="h-24 animate-pulse rounded-2xl bg-muted/40" />
-						</CardContent>
-					</Card>
+					<div className="flex flex-col gap-4">
+						<Card size="sm">
+							<CardContent className="flex flex-col gap-3">
+								<div className="flex items-center gap-3">
+									<Skeleton className="size-10 rounded-full" />
+									<div className="flex flex-1 flex-col gap-1.5">
+										<Skeleton className="h-4 w-32" />
+										<Skeleton className="h-3 w-44" />
+									</div>
+								</div>
+								<Skeleton className="h-24 w-full" />
+								<Skeleton className="h-16 w-full" />
+							</CardContent>
+						</Card>
+					</div>
 				}
 			>
 				<ProfileDetails searchParams={searchParams} />

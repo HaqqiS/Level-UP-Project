@@ -23,7 +23,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+	Field,
+	FieldGroup,
+	FieldLabel,
+	FieldTitle,
+} from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { REMINDER_TIME_PRESETS } from "@/lib/push/reminder-logic";
 import {
@@ -241,8 +246,11 @@ export function PushRemindersCard({
 
 			<FieldGroup className="gap-4">
 				<Field>
-					<FieldLabel>{t("reminders.timeLabel")}</FieldLabel>
+					<FieldTitle id="reminder-time-preset-label">
+						{t("reminders.timeLabel")}
+					</FieldTitle>
 					<ToggleGroup
+						aria-labelledby="reminder-time-preset-label"
 						variant="outline"
 						spacing={1}
 						className="grid w-full grid-cols-3 gap-1.5"

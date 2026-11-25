@@ -21,35 +21,40 @@ export function GamificationBar({ stats }: { stats: GamificationSummary }) {
 
 	return (
 		<Card size="sm">
-			<CardContent className="space-y-3">
+			<CardContent className="flex flex-col gap-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div className="flex flex-wrap items-center gap-1.5">
 						<Badge variant="outline" className={tierStyle.badgeClass}>
-							{stats.rankTier === "S" ? <Crown /> : <Trophy />}
+							{stats.rankTier === "S" ? (
+								<Crown aria-hidden="true" />
+							) : (
+								<Trophy aria-hidden="true" />
+							)}
 							{t("rankLevel", {
 								tier: stats.rankTier,
 								level: stats.tierLevel,
 							})}
 						</Badge>
 						{stats.equippedTitle && (
-							<Badge variant="outline" size="sm">
-								<Sparkles />
+							<Badge variant="primary-light">
+								<Sparkles aria-hidden="true" />
 								{stats.equippedTitle}
 							</Badge>
 						)}
-						<Badge variant="secondary">
+						<Badge variant="secondary" className="tabular-nums">
 							{t("totalXp", { xp: stats.totalXp })}
 						</Badge>
 					</div>
 					<div className="flex flex-wrap items-center gap-1.5">
 						<Badge
 							variant={stats.currentStreak > 0 ? "warning-light" : "outline"}
+							className="tabular-nums"
 						>
-							<Flame />
+							<Flame aria-hidden="true" />
 							{t("streak", { days: stats.currentStreak })}
 						</Badge>
 						{stats.longestStreak > 0 && (
-							<Badge variant="outline">
+							<Badge variant="outline" className="tabular-nums">
 								{t("longestStreak", { days: stats.longestStreak })}
 							</Badge>
 						)}
@@ -57,15 +62,20 @@ export function GamificationBar({ stats }: { stats: GamificationSummary }) {
 				</div>
 
 				{stats.levelProgress.isPromotionReady ? (
-					<div className="space-y-2">
-						<Progress value={stats.levelProgress.progressPercent}>
-							<ProgressLabel>
-								{t("promotionTrialReady")} ·{" "}
-								{t("overflowXpBanked", {
-									xp: stats.levelProgress.overflowXp,
-								})}
-							</ProgressLabel>
-							<ProgressValue />
+					<div className="flex flex-col gap-2">
+						<Progress
+							value={stats.levelProgress.progressPercent}
+							className="gap-2"
+						>
+							<div className="flex w-full items-baseline justify-between gap-2">
+								<ProgressLabel className="min-w-0 text-xs tabular-nums">
+									{t("promotionTrialReady")} ·{" "}
+									{t("overflowXpBanked", {
+										xp: stats.levelProgress.overflowXp,
+									})}
+								</ProgressLabel>
+								<ProgressValue className="ml-0 shrink-0 text-xs tabular-nums" />
+							</div>
 						</Progress>
 						<div className="flex items-center justify-between gap-2">
 							<span className="text-xs text-muted-foreground">
@@ -74,7 +84,7 @@ export function GamificationBar({ stats }: { stats: GamificationSummary }) {
 								})}
 							</span>
 							<Button
-								size="xs"
+								size="sm"
 								variant="outline"
 								nativeButton={false}
 								render={<Link href="/profile" />}
@@ -84,23 +94,28 @@ export function GamificationBar({ stats }: { stats: GamificationSummary }) {
 						</div>
 					</div>
 				) : (
-					<Progress value={stats.levelProgress.progressPercent}>
-						<ProgressLabel>
-							{t("xpProgress", {
-								current: stats.levelProgress.currentLevelXp,
-								required: stats.levelProgress.requiredLevelXp,
-							})}
-						</ProgressLabel>
-						<ProgressValue />
+					<Progress
+						value={stats.levelProgress.progressPercent}
+						className="gap-2"
+					>
+						<div className="flex w-full items-baseline justify-between gap-2">
+							<ProgressLabel className="min-w-0 text-xs tabular-nums">
+								{t("xpProgress", {
+									current: stats.levelProgress.currentLevelXp,
+									required: stats.levelProgress.requiredLevelXp,
+								})}
+							</ProgressLabel>
+							<ProgressValue className="ml-0 shrink-0 text-xs tabular-nums" />
+						</div>
 					</Progress>
 				)}
 
 				<div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/50 p-3">
 					<div className="flex min-w-0 flex-1 items-center gap-3">
 						<IconTile variant="soft" size="sm">
-							<Shield />
+							<Shield aria-hidden="true" />
 						</IconTile>
-						<div className="min-w-0 space-y-0.5">
+						<div className="flex min-w-0 flex-col gap-0.5">
 							<p className="text-sm font-semibold">{t("freezeTitle")}</p>
 							<p className="text-xs text-muted-foreground">
 								{freezeReady
@@ -113,7 +128,6 @@ export function GamificationBar({ stats }: { stats: GamificationSummary }) {
 					</div>
 					<Badge
 						variant={freezeReady ? "info-light" : "warning-light"}
-						size="sm"
 						className="shrink-0"
 					>
 						{freezeReady ? t("freezeReadyBadge") : t("freezeUsedBadge")}

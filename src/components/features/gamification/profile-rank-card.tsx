@@ -132,6 +132,17 @@ export function ProfileRankCard({
 }) {
 	const t = useTranslations();
 	const [titleSheetOpen, setTitleSheetOpen] = useState(false);
+	const [optimisticTitleKey, setOptimisticTitleKey] = useState<string | null>(
+		stats.equippedTitleKey ?? null,
+	);
+	const [optimisticTitle, setOptimisticTitle] = useState<string | null>(
+		stats.equippedTitle ?? null,
+	);
+
+	useEffect(() => {
+		setOptimisticTitleKey(stats.equippedTitleKey ?? null);
+		setOptimisticTitle(stats.equippedTitle ?? null);
+	}, [stats.equippedTitleKey, stats.equippedTitle]);
 
 	const gate = stats.levelProgress.promotionGate;
 	const isHighlightedTrial =
@@ -150,13 +161,10 @@ export function ProfileRankCard({
 
 	return (
 		<>
-			<Card
-				size="sm"
-				className={cn(stats.rankTier === "S" && tierStyle.ringClass)}
-			>
-				<CardContent className="space-y-3">
+			<Card size="sm">
+				<CardContent className="flex flex-col gap-3">
 					{/* Section 1: Identity & Equipped Title */}
-					<div className="space-y-2.5">
+					<div className="flex flex-col gap-2.5">
 						<div className="flex items-center gap-3">
 							<Avatar size="lg">
 								{user.image && <AvatarImage src={user.image} alt={user.name} />}
@@ -172,10 +180,10 @@ export function ProfileRankCard({
 
 						<div className="flex flex-wrap items-center justify-between gap-2">
 							<div className="flex min-w-0 items-center gap-1.5">
-								{stats.equippedTitle ? (
-									<Badge variant="primary-light" size="sm">
-										<Sparkles />
-										{stats.equippedTitle}
+								{optimisticTitle ? (
+									<Badge variant="primary-light">
+										<Sparkles aria-hidden="true" />
+										{optimisticTitle}
 									</Badge>
 								) : (
 									<span className="text-xs text-muted-foreground">
@@ -184,11 +192,12 @@ export function ProfileRankCard({
 								)}
 							</div>
 							<Button
-								size="xs"
+								type="button"
+								size="sm"
 								variant="outline"
 								onClick={() => setTitleSheetOpen(true)}
 							>
-								{stats.equippedTitle
+								{optimisticTitle
 									? t("gamification.changeTitle")
 									: t("gamification.chooseTitle")}
 							</Button>
@@ -198,8 +207,9 @@ export function ProfileRankCard({
 					{/* Section 2: Rank Showcase tonal tile */}
 					<div
 						className={cn(
-							"space-y-3 rounded-2xl bg-muted/50 p-3",
+							"flex flex-col gap-3 rounded-2xl p-3",
 							tierStyle.cardAccentClass,
+							tierStyle.ringClass,
 						)}
 					>
 						<div className="flex items-start gap-3">
@@ -213,25 +223,25 @@ export function ProfileRankCard({
 								{stats.rankTier}
 							</div>
 
-							<div className="min-w-0 flex-1 space-y-1.5">
+							<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 								<div className="flex flex-wrap items-center gap-1.5">
 									<Badge variant="outline" className={tierStyle.badgeClass}>
-										{stats.rankTier === "S" ? <Crown /> : <Trophy />}
+										{stats.rankTier === "S" ? (
+											<Crown aria-hidden="true" />
+										) : (
+											<Trophy aria-hidden="true" />
+										)}
 										{t("gamification.rankLevel", {
 											tier: stats.rankTier,
 											level: stats.tierLevel,
 										})}
 									</Badge>
 									{stats.rankTier === "S" && (
-										<Badge
-											variant="outline"
-											size="sm"
-											className={tierStyle.badgeClass}
-										>
+										<Badge variant="outline" className={tierStyle.badgeClass}>
 											{t("gamification.unlimitedRankS")}
 										</Badge>
 									)}
-									<Badge variant="secondary">
+									<Badge variant="secondary" className="tabular-nums">
 										{t("gamification.totalXp", { xp: stats.totalXp })}
 									</Badge>
 								</div>
@@ -239,15 +249,15 @@ export function ProfileRankCard({
 								{(stats.currentStreak > 0 || stats.longestStreak > 0) && (
 									<div className="flex flex-wrap items-center gap-1.5">
 										{stats.currentStreak > 0 && (
-											<Badge variant="warning-light" size="sm">
-												<Flame />
+											<Badge variant="warning-light" className="tabular-nums">
+												<Flame aria-hidden="true" />
 												{t("gamification.streak", {
 													days: stats.currentStreak,
 												})}
 											</Badge>
 										)}
 										{stats.longestStreak > 0 && (
-											<Badge variant="outline" size="sm">
+											<Badge variant="outline" className="tabular-nums">
 												{t("gamification.longestStreak", {
 													days: stats.longestStreak,
 												})}
@@ -258,23 +268,28 @@ export function ProfileRankCard({
 							</div>
 						</div>
 
-						<Progress value={stats.levelProgress.progressPercent}>
-							<ProgressLabel className="text-xs">
-								{stats.levelProgress.isPromotionReady ? (
-									<>
-										{t("gamification.promotionTrialReady")} ·{" "}
-										{t("gamification.overflowXpBanked", {
-											xp: stats.levelProgress.overflowXp,
-										})}
-									</>
-								) : (
-									t("gamification.xpProgress", {
-										current: stats.levelProgress.currentLevelXp,
-										required: stats.levelProgress.requiredLevelXp,
-									})
-								)}
-							</ProgressLabel>
-							<ProgressValue className="text-xs" />
+						<Progress
+							value={stats.levelProgress.progressPercent}
+							className="gap-2"
+						>
+							<div className="flex w-full items-baseline justify-between gap-2">
+								<ProgressLabel className="min-w-0 text-xs tabular-nums">
+									{stats.levelProgress.isPromotionReady ? (
+										<>
+											{t("gamification.promotionTrialReady")} ·{" "}
+											{t("gamification.overflowXpBanked", {
+												xp: stats.levelProgress.overflowXp,
+											})}
+										</>
+									) : (
+										t("gamification.xpProgress", {
+											current: stats.levelProgress.currentLevelXp,
+											required: stats.levelProgress.requiredLevelXp,
+										})
+									)}
+								</ProgressLabel>
+								<ProgressValue className="ml-0 shrink-0 text-xs tabular-nums" />
+							</div>
 						</Progress>
 					</div>
 
@@ -284,12 +299,12 @@ export function ProfileRankCard({
 							className={cn(
 								"rounded-2xl p-3",
 								isHighlightedTrial
-									? "bg-amber-500/12 dark:bg-amber-400/12"
+									? "bg-warning/10 dark:bg-warning/15"
 									: "bg-muted/50",
 							)}
 						>
 							<Collapsible open={trialOpen} onOpenChange={setTrialOpen}>
-								<CollapsibleTrigger className="flex w-full items-center justify-between gap-2 text-left outline-none">
+								<CollapsibleTrigger className="flex min-h-8 w-full items-center justify-between gap-2 rounded-md py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
 									<div className="flex min-w-0 flex-wrap items-center gap-2">
 										<span className="text-sm font-semibold">
 											{t("gamification.promotionTrialTitle", {
@@ -302,7 +317,7 @@ export function ProfileRankCard({
 													? "warning-light"
 													: "outline"
 											}
-											size="xs"
+											className="tabular-nums"
 										>
 											{stats.levelProgress.isPromotionReady
 												? t("gamification.trialReadyBadge")
@@ -313,14 +328,15 @@ export function ProfileRankCard({
 										</Badge>
 									</div>
 									<ChevronDown
+										aria-hidden="true"
 										className={cn(
-											"size-4 shrink-0 text-muted-foreground transition-transform duration-150",
+											"size-4 shrink-0 text-muted-foreground transition-transform duration-150 motion-reduce:transition-none",
 											trialOpen && "rotate-180",
 										)}
 									/>
 								</CollapsibleTrigger>
 
-								<CollapsibleContent className="space-y-2.5 pt-2.5">
+								<CollapsibleContent className="flex flex-col gap-2.5 pt-2.5">
 									<p className="text-xs text-muted-foreground">
 										{stats.levelProgress.isPromotionReady
 											? t("gamification.trialReadySubtitle", {
@@ -331,7 +347,7 @@ export function ProfileRankCard({
 												})}
 									</p>
 
-									<div className="space-y-1.5">
+									<div className="flex flex-col gap-1.5">
 										{trialCriteria.map((item) => (
 											<div
 												key={item.key}
@@ -339,9 +355,15 @@ export function ProfileRankCard({
 											>
 												<div className="flex min-w-0 items-center gap-1.5">
 													{item.met ? (
-														<CheckCircle2 className="size-3.5 shrink-0 text-success" />
+														<CheckCircle2
+															aria-hidden="true"
+															className="size-3.5 shrink-0 text-success-foreground"
+														/>
 													) : (
-														<Circle className="size-3.5 shrink-0 text-muted-foreground" />
+														<Circle
+															aria-hidden="true"
+															className="size-3.5 shrink-0 text-muted-foreground"
+														/>
 													)}
 													<span
 														className={cn(
@@ -358,7 +380,7 @@ export function ProfileRankCard({
 													className={cn(
 														"shrink-0 tabular-nums font-medium",
 														item.met
-															? "text-success-foreground dark:text-success"
+															? "text-success-foreground"
 															: "text-foreground",
 													)}
 												>
@@ -369,7 +391,7 @@ export function ProfileRankCard({
 									</div>
 
 									<Button
-										size="xs"
+										size="sm"
 										variant="outline"
 										nativeButton={false}
 										render={<Link href="/exercises" />}
@@ -382,7 +404,7 @@ export function ProfileRankCard({
 					)}
 
 					{/* Section 4: Profile summary tonal tile */}
-					<div className="space-y-2.5 rounded-2xl bg-muted/50 p-3">
+					<div className="flex flex-col gap-2.5 rounded-2xl bg-muted/50 p-3">
 						<div className="flex items-center justify-between gap-2 text-sm">
 							<span className="text-muted-foreground">
 								{t("profile.level")}
@@ -413,7 +435,11 @@ export function ProfileRankCard({
 				open={titleSheetOpen}
 				onOpenChange={setTitleSheetOpen}
 				achievements={achievements}
-				equippedTitleKey={stats.equippedTitleKey ?? null}
+				equippedTitleKey={optimisticTitleKey}
+				onOptimisticTitleChange={(key, title) => {
+					setOptimisticTitleKey(key);
+					setOptimisticTitle(title);
+				}}
 			/>
 		</>
 	);
