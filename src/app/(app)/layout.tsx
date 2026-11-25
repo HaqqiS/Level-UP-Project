@@ -1,10 +1,16 @@
 import { Suspense } from "react";
 import { BottomNav } from "@/components/features/shell/bottom-nav";
+import { TimezoneSync } from "@/components/features/shell/timezone-sync";
 import { requireOnboarded } from "@/lib/auth/session";
 
 async function Gate({ children }: { children: React.ReactNode }) {
-	await requireOnboarded();
-	return <>{children}</>;
+	const { profile } = await requireOnboarded();
+	return (
+		<>
+			<TimezoneSync currentTimezone={profile.timezone} />
+			{children}
+		</>
+	);
 }
 
 export default function AppLayout({ children }: LayoutProps<"/">) {

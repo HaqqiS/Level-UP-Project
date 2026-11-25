@@ -69,6 +69,18 @@ describe("isExerciseEligible", () => {
 	it("enforces difficulty bands per experience level", () => {
 		expect(
 			isExerciseEligible(
+				{ ...baseExercise, difficulty: 3 },
+				{ ...intermediateProfile, experienceLevel: "NONE" },
+			),
+		).toBe(false);
+		expect(
+			isExerciseEligible(
+				{ ...baseExercise, difficulty: 2 },
+				{ ...intermediateProfile, experienceLevel: "NONE" },
+			),
+		).toBe(true);
+		expect(
+			isExerciseEligible(
 				{ ...baseExercise, difficulty: 8 },
 				intermediateProfile,
 			),

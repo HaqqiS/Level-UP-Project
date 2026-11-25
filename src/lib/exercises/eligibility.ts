@@ -14,7 +14,7 @@ export const DIFFICULTY_BAND_BY_LEVEL: Record<
 	ExperienceLevel,
 	{ min: number; max: number }
 > = {
-	NONE: { min: 1, max: 3 },
+	NONE: { min: 1, max: 2 },
 	BEGINNER: { min: 1, max: 4 },
 	INTERMEDIATE: { min: 2, max: 7 },
 	ADVANCED: { min: 4, max: 10 },

@@ -237,10 +237,24 @@ export function scaleExercisesToVolumeRange(
 	return items;
 }
 
+const BEGINNER_FOCUS_ROTATION: {
+	focus: string;
+	patterns: MovementPattern[];
+}[] = [
+	{ focus: "Upper Push & Core", patterns: ["PUSH", "CORE", "MOBILITY"] },
+	{ focus: "Lower Body & Mobility", patterns: ["LEGS", "MOBILITY", "CORE"] },
+	{ focus: "Upper Pull & Mobility", patterns: ["PULL", "MOBILITY", "CORE"] },
+	{
+		focus: "Full Body Fundamentals",
+		patterns: ["PUSH", "LEGS", "PULL", "CORE"],
+	},
+];
+
 function buildRuleBasedSessionExercises(params: {
 	rotationIndex: number;
 	sessionMinutes: number;
 	experienceLevel: ExperienceLevel;
+	goals: readonly string[];
 	eligibleExercises: readonly PlanExerciseMeta[];
 	allExercises: readonly PlanExerciseMeta[];
 	previousWeekExerciseIds: ReadonlySet<string>;
@@ -249,41 +263,76 @@ function buildRuleBasedSessionExercises(params: {
 		rotationIndex,
 		sessionMinutes,
 		experienceLevel,
+		goals,
 		eligibleExercises,
 		allExercises,
 		previousWeekExerciseIds,
 	} = params;
-	const template = FOCUS_ROTATION[rotationIndex % FOCUS_ROTATION.length];
+	const useGentleRotation =
+		experienceLevel === "NONE" && !goals.includes("skills");
+	const rotation = useGentleRotation ? BEGINNER_FOCUS_ROTATION : FOCUS_ROTATION;
+	const template = rotation[rotationIndex % rotation.length];
 	const targetCount = sessionMinutes <= 15 ? 3 : sessionMinutes <= 30 ? 4 : 5;
 	const defaultSets =
-		experienceLevel === "NONE" ? 2 : sessionMinutes >= 45 ? 3 : 2;
+		experienceLevel === "NONE"
+			? 2
+			: experienceLevel === "BEGINNER"
+				? sessionMinutes >= 45
+					? 3
+					: 2
+				: sessionMinutes >= 45
+					? 4
+					: 3;
+	const defaultReps =
+		experienceLevel === "NONE" ? 6 : experienceLevel === "BEGINNER" ? 8 : 10;
+	const defaultSeconds =
+		experienceLevel === "NONE" ? 20 : experienceLevel === "BEGINNER" ? 25 : 30;
+	const defaultRestSeconds = experienceLevel === "NONE" ? 75 : 60;
 	const eligibleIds = new Set(eligibleExercises.map((e) => e.id));
+
+	// Sort easiest-first so beginners and "never trained" users start at level 1.
+	const sortedEligible = [...eligibleExercises].sort(
+		(a, b) => a.difficulty - b.difficulty || a.name.localeCompare(b.name),
+	);
 
 	const picked: PlanExerciseMeta[] = [];
 	const usedIds = new Set<string>();
 
 	for (const pattern of template.patterns) {
 		if (picked.length >= targetCount) break;
-		const candidates = eligibleExercises.filter(
+		const candidates = sortedEligible.filter(
 			(ex) => ex.pattern === pattern && !usedIds.has(ex.id),
 		);
 		if (candidates.length === 0) continue;
-		const chosen =
-			candidates[rotationIndex % candidates.length] ?? candidates[0];
+		// For NONE ("never trained"), prefer the lowest-difficulty tier available in this pattern.
+		const pool =
+			experienceLevel === "NONE"
+				? candidates.filter((ex) => ex.difficulty === candidates[0].difficulty)
+				: candidates;
+		const chosen = pool[rotationIndex % pool.length] ?? candidates[0];
 		const clampedId = clampProgressionStep(
 			chosen.id,
 			allExercises,
 			eligibleIds,
 			previousWeekExerciseIds,
 		);
-		const finalEx = eligibleExercises.find((e) => e.id === clampedId) ?? chosen;
+		const finalEx = sortedEligible.find((e) => e.id === clampedId) ?? chosen;
 		if (!usedIds.has(finalEx.id)) {
 			picked.push(finalEx);
 			usedIds.add(finalEx.id);
 		}
 	}
 
-	for (const ex of eligibleExercises) {
+	for (const ex of sortedEligible) {
+		if (picked.length >= targetCount) break;
+		if (useGentleRotation && ex.pattern === "SKILL") continue;
+		if (!usedIds.has(ex.id)) {
+			picked.push(ex);
+			usedIds.add(ex.id);
+		}
+	}
+
+	for (const ex of sortedEligible) {
 		if (picked.length >= targetCount) break;
 		if (!usedIds.has(ex.id)) {
 			picked.push(ex);
@@ -296,9 +345,9 @@ function buildRuleBasedSessionExercises(params: {
 			{
 				exerciseId: ex.id,
 				sets: defaultSets,
-				targetReps: ex.measure === "REPS" ? 8 : null,
-				targetSeconds: ex.measure === "SECONDS" ? 25 : null,
-				restSeconds: 60,
+				targetReps: ex.measure === "REPS" ? defaultReps : null,
+				targetSeconds: ex.measure === "SECONDS" ? defaultSeconds : null,
+				restSeconds: defaultRestSeconds,
 			},
 			ex,
 		),
@@ -393,6 +442,7 @@ export function buildFallbackWeeklyPlan(params: {
 			rotationIndex: rotationIdx++,
 			sessionMinutes: profile.sessionMinutes,
 			experienceLevel: profile.experienceLevel,
+			goals: profile.goals,
 			eligibleExercises,
 			allExercises,
 			previousWeekExerciseIds,
@@ -494,6 +544,7 @@ export function enforceWeeklySafetyBounds(params: {
 				rotationIndex: fallbackIdx++,
 				sessionMinutes: profile.sessionMinutes,
 				experienceLevel: profile.experienceLevel,
+				goals: profile.goals,
 				eligibleExercises,
 				allExercises,
 				previousWeekExerciseIds,

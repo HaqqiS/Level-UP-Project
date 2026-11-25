@@ -213,6 +213,29 @@ describe("buildFallbackWeeklyPlan", () => {
 		expect(plan.sessions.filter((s) => !s.isRest)).toHaveLength(3);
 		expect(computeWeeklyVolume(plan.sessions)).toBeLessThanOrEqual(88);
 	});
+
+	it("prioritizes level 1 exercises and gentle volume for NONE (never trained) users", () => {
+		const noneEligible = exercises.filter((e) => e.difficulty <= 2);
+		const plan = buildFallbackWeeklyPlan({
+			profile: {
+				experienceLevel: "NONE",
+				trainingDays: [1, 3, 5],
+				sessionMinutes: 30,
+				goals: ["strength"],
+			},
+			eligibleExercises: noneEligible,
+			allExercises: exercises,
+		});
+
+		const trainingSessions = plan.sessions.filter((s) => !s.isRest);
+		expect(trainingSessions).toHaveLength(3);
+		const mon = trainingSessions[0];
+		// Push day should pick Wall Push-up (difficulty 1) over Incline Push-up (difficulty 2)
+		expect(mon.exercises[0]?.exerciseId).toBe("push-1");
+		expect(mon.exercises[0]?.sets).toBe(2);
+		expect(mon.exercises[0]?.targetReps).toBe(6);
+		expect(mon.exercises[0]?.restSeconds).toBe(75);
+	});
 });
 
 describe("enforceDailyAdjustmentBounds", () => {

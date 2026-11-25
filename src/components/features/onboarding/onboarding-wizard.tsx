@@ -119,7 +119,14 @@ export function OnboardingWizard({
 	}
 
 	function submit() {
-		const payload = { ...draft } as OnboardingInput;
+		const detectedTimezone =
+			typeof Intl !== "undefined"
+				? Intl.DateTimeFormat().resolvedOptions().timeZone
+				: undefined;
+		const payload = {
+			...draft,
+			...(detectedTimezone ? { timezone: detectedTimezone } : {}),
+		} as OnboardingInput;
 		startTransition(async () => {
 			try {
 				const res = await completeOnboarding(payload);

@@ -25,6 +25,8 @@ import {
 } from "@/server/services/weekly-plan-service";
 import { getDailyHydrationMlForUser } from "@/server/services/wellness-service";
 
+export const maxDuration = 60;
+
 function normalizeTrainTab(raw?: string): TrainTab {
 	if (raw === "log" || raw === "plan") return raw;
 	return "today";

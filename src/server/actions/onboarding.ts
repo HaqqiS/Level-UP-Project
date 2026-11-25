@@ -14,6 +14,16 @@ import {
 } from "@/lib/validation/onboarding";
 import { diffDaysUtc } from "@/lib/wellness/cycle-engine";
 
+function resolveValidTimezone(raw?: string): string | undefined {
+	if (!raw) return undefined;
+	try {
+		new Intl.DateTimeFormat("en-US", { timeZone: raw });
+		return raw;
+	} catch {
+		return undefined;
+	}
+}
+
 export type OnboardingResult = { ok: false; error: string };
 
 export async function completeOnboarding(
@@ -115,6 +125,7 @@ export async function completeOnboarding(
 				)
 			: d.experienceLevel;
 
+		const validTimezone = resolveValidTimezone(d.timezone);
 		const profileData = {
 			experienceLevel: effectiveExperienceLevel,
 			maxPushups: d.maxPushups ?? null,
@@ -128,6 +139,7 @@ export async function completeOnboarding(
 			injuryNotes: d.injuryNotes ?? null,
 			birthYear: d.birthYear ?? null,
 			sex: d.sex ?? null,
+			...(validTimezone ? { timezone: validTimezone } : {}),
 			tracksPeriod: isFemalePeriodTracking,
 			lastPeriodStartDate: effectiveLastPeriodStartDate,
 			averageCycleDays,

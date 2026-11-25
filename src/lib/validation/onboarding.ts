@@ -94,7 +94,10 @@ export const OnboardingSchema = ExperienceStep.extend(GoalsStep.shape)
 	.extend(EquipmentStep.shape)
 	.extend(ScheduleStep.shape)
 	.extend(BodyStep.shape)
-	.extend(DisclaimerStep.shape);
+	.extend(DisclaimerStep.shape)
+	.extend({
+		timezone: z.string().min(1).max(64).optional(),
+	});
 
 export type OnboardingInput = z.input<typeof OnboardingSchema>;
 export type OnboardingData = z.output<typeof OnboardingSchema>;
