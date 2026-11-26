@@ -42,7 +42,7 @@ export async function generateStructuredWithFallback<
 				model: google(attempt.modelId),
 				output: Output.object({ schema }),
 				prompt,
-				maxRetries: 1,
+				maxRetries: 0,
 				abortSignal: AbortSignal.timeout(attempt.timeoutMs),
 			});
 			return {
