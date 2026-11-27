@@ -44,6 +44,7 @@ import type {
 } from "@/lib/gamification/skill-tree";
 import { AnatomicalBodyMap } from "../muscles/anatomical-body-map";
 import type { BodyMapGender } from "../muscles/body-map-paths";
+import { ExerciseFormDemo } from "./exercise-form-demo";
 import type { ExerciseItem } from "./types";
 
 const TIER_BADGE_CLASS: Record<MasteryTierValue, string> = {
@@ -495,6 +496,8 @@ export function ExerciseDetailSheet({
 							</div>
 						</section>
 					)}
+
+					<ExerciseFormDemo exercise={exercise} />
 
 					<section className="space-y-2">
 						<h3 className="text-sm font-semibold">

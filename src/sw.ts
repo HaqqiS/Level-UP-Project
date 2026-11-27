@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 import { defaultCache } from "@serwist/next/worker";
 import {
+	CacheableResponsePlugin,
+	CacheFirst,
 	ExpirationPlugin,
 	NetworkFirst,
 	NetworkOnly,
@@ -80,12 +82,36 @@ const authAndNavigationCache: RuntimeCaching[] = [
 	},
 ];
 
+const exerciseDemoMediaCache: RuntimeCaching[] = [
+	{
+		matcher: ({ url }) =>
+			url.hostname.endsWith(".supabase.co") &&
+			url.pathname.includes("/storage/v1/object/public/") &&
+			/\.(?:webp|jpg|jpeg|png)$/i.test(url.pathname),
+		handler: new CacheFirst({
+			cacheName: "exercise-demo-images",
+			plugins: [
+				new CacheableResponsePlugin({ statuses: [0, 200] }),
+				new ExpirationPlugin({
+					maxEntries: 250,
+					maxAgeSeconds: 60 * 60 * 24 * 30,
+					maxAgeFrom: "last-used",
+				}),
+			],
+		}),
+	},
+];
+
 const serwist = new Serwist({
 	precacheEntries: self.__SW_MANIFEST,
 	skipWaiting: true,
 	clientsClaim: true,
 	navigationPreload: true,
-	runtimeCaching: [...authAndNavigationCache, ...defaultCache],
+	runtimeCaching: [
+		...authAndNavigationCache,
+		...exerciseDemoMediaCache,
+		...defaultCache,
+	],
 });
 
 serwist.addEventListeners();
