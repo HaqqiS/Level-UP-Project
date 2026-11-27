@@ -6,7 +6,11 @@ import {
 	computeTopologicalTiers,
 	validateProgressionDag,
 } from "../src/lib/exercises/progression-dag";
-import { SEED_EDGES, SEED_EXERCISES } from "./seed-data";
+import {
+	EXERCISE_MEDIA_BY_SLUG,
+	SEED_EDGES,
+	SEED_EXERCISES,
+} from "./seed-data";
 
 const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 if (!connectionString) {
@@ -42,6 +46,9 @@ async function main() {
 	for (const ex of SEED_EXERCISES) {
 		const defaults = inferDefaultMusclesAndMastery(ex);
 		const treeTier = tiers.get(ex.slug) ?? 1;
+		const media = EXERCISE_MEDIA_BY_SLUG[ex.slug];
+		const demoVideoId = media?.demoVideoId ?? ex.demoVideoId ?? null;
+		const demoImages = media?.demoImages ?? ex.demoImages ?? [];
 
 		const record = await prisma.exercise.upsert({
 			where: { slug: ex.slug },
@@ -53,6 +60,8 @@ async function main() {
 				equipment: ex.equipment,
 				measure: ex.measure,
 				cues: ex.cues,
+				demoVideoId,
+				demoImages,
 				contraindications: ex.contraindications,
 				branchKey: ex.branchKey,
 				treeTier,
@@ -73,6 +82,8 @@ async function main() {
 				equipment: ex.equipment,
 				measure: ex.measure,
 				cues: ex.cues,
+				demoVideoId,
+				demoImages,
 				contraindications: ex.contraindications,
 				branchKey: ex.branchKey,
 				treeTier,

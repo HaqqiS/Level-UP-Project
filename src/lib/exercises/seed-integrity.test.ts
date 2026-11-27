@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { SEED_EDGES, SEED_EXERCISES } from "../../../prisma/seed-data";
+import {
+	EXERCISE_MEDIA_BY_SLUG,
+	SEED_EDGES,
+	SEED_EXERCISES,
+} from "../../../prisma/seed-data";
 import { inferDefaultMusclesAndMastery, MUSCLE_GROUPS } from "./muscles";
 import { validateProgressionDag } from "./progression-dag";
 
@@ -133,5 +137,32 @@ describe("expanded curated seed catalog & DAG integrity", () => {
 		}
 		expect([...outDegree.values()].some((d) => d > 1)).toBe(true);
 		expect([...inDegree.values()].some((d) => d > 1)).toBe(true);
+	});
+
+	it("wires valid curated exercise media keys, YouTube IDs, and Supabase Storage image paths", () => {
+		const slugSet = new Set(SEED_EXERCISES.map((ex) => ex.slug));
+		const youtubeIdRegex = /^[A-Za-z0-9_-]{11}$/;
+		const storageImageKeyRegex =
+			/^[a-z0-9-]+\/[a-z0-9_-]+\.(webp|jpg|jpeg|png)$/i;
+
+		const mediaEntries = Object.entries(EXERCISE_MEDIA_BY_SLUG);
+		expect(mediaEntries.length).toBeGreaterThanOrEqual(40);
+
+		for (const [slug, media] of mediaEntries) {
+			expect(slugSet.has(slug)).toBe(true);
+			expect(
+				Boolean(media.demoVideoId) || (media.demoImages?.length ?? 0) > 0,
+			).toBe(true);
+
+			if (media.demoVideoId !== undefined) {
+				expect(media.demoVideoId).toMatch(youtubeIdRegex);
+			}
+			if (media.demoImages !== undefined) {
+				expect(media.demoImages.length).toBeGreaterThanOrEqual(1);
+				for (const key of media.demoImages) {
+					expect(key).toMatch(storageImageKeyRegex);
+				}
+			}
+		}
 	});
 });
