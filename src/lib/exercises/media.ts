@@ -46,7 +46,10 @@ export function buildSupabaseExerciseImageUrl(
 
 	try {
 		const parsed = new URL(base);
-		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+		const isLocalHttp =
+			parsed.protocol === "http:" &&
+			(parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1");
+		if (parsed.protocol !== "https:" && !isLocalHttp) {
 			return null;
 		}
 	} catch {

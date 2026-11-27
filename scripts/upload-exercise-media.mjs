@@ -5,10 +5,13 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 const BUCKET = "exercise-media";
-const FREE_EX_DB_JSON_URL =
-	"https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json";
-const FREE_EX_DB_IMAGE_BASE =
-	"https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises";
+const FREE_EX_DB_COMMIT = "f00c92c7dcf1216a928a52c3706c7ce8e2f71ed5";
+const FREE_EX_DB_JSON_URL = `https://raw.githubusercontent.com/yuhonas/free-exercise-db/${FREE_EX_DB_COMMIT}/dist/exercises.json`;
+const FREE_EX_DB_IMAGE_BASE = `https://raw.githubusercontent.com/yuhonas/free-exercise-db/${FREE_EX_DB_COMMIT}/exercises`;
+const UPSTREAM_IMAGE_PATH_REGEX =
+	/^[A-Za-z0-9_-]+\/[0-9]+\.(jpg|jpeg|png|webp)$/i;
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_RAW_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /**
  * Explicit, manually audited mapping from our curated exercise slugs to
@@ -82,7 +85,9 @@ function resolveSupabaseUrl() {
 
 async function uploadExerciseImages(supabase) {
 	console.log("Fetching free-exercise-db catalog...");
-	const res = await fetch(FREE_EX_DB_JSON_URL);
+	const res = await fetch(FREE_EX_DB_JSON_URL, {
+		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+	});
 	if (!res.ok) {
 		throw new Error(
 			`Failed to fetch free-exercise-db JSON: HTTP ${res.status}`,
@@ -110,12 +115,28 @@ async function uploadExerciseImages(supabase) {
 		}
 
 		for (let i = 0; i < images.length; i += 1) {
-			const imgUrl = `${FREE_EX_DB_IMAGE_BASE}/${images[i]}`;
-			const imgRes = await fetch(imgUrl);
+			const relPath = images[i];
+			if (
+				typeof relPath !== "string" ||
+				!UPSTREAM_IMAGE_PATH_REGEX.test(relPath)
+			) {
+				throw new Error(
+					`Rejected unsafe upstream image path "${String(relPath)}" for ${slug}`,
+				);
+			}
+			const imgUrl = `${FREE_EX_DB_IMAGE_BASE}/${relPath}`;
+			const imgRes = await fetch(imgUrl, {
+				signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+			});
 			if (!imgRes.ok) {
 				throw new Error(`Failed to download ${imgUrl}: HTTP ${imgRes.status}`);
 			}
 			const rawBuffer = Buffer.from(await imgRes.arrayBuffer());
+			if (rawBuffer.byteLength > MAX_RAW_IMAGE_BYTES) {
+				throw new Error(
+					`Upstream image ${imgUrl} exceeds ${MAX_RAW_IMAGE_BYTES} byte safety limit`,
+				);
+			}
 			const webpBuffer = await sharp(rawBuffer)
 				.resize({ width: 640, withoutEnlargement: true })
 				.webp({ quality: 78 })
@@ -170,7 +191,9 @@ async function verifyCuratedYouTubeVideos() {
 		await Promise.all(
 			chunk.map(async (videoId) => {
 				const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
-				const res = await fetch(oembedUrl);
+				const res = await fetch(oembedUrl, {
+					signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+				});
 				if (!res.ok) {
 					failures.push({ videoId, status: res.status });
 					return;

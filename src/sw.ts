@@ -85,13 +85,14 @@ const authAndNavigationCache: RuntimeCaching[] = [
 const exerciseDemoMediaCache: RuntimeCaching[] = [
 	{
 		matcher: ({ url }) =>
+			url.protocol === "https:" &&
 			url.hostname.endsWith(".supabase.co") &&
-			url.pathname.includes("/storage/v1/object/public/") &&
+			url.pathname.startsWith("/storage/v1/object/public/exercise-media/") &&
 			/\.(?:webp|jpg|jpeg|png)$/i.test(url.pathname),
 		handler: new CacheFirst({
 			cacheName: "exercise-demo-images",
 			plugins: [
-				new CacheableResponsePlugin({ statuses: [0, 200] }),
+				new CacheableResponsePlugin({ statuses: [200] }),
 				new ExpirationPlugin({
 					maxEntries: 250,
 					maxAgeSeconds: 60 * 60 * 24 * 30,

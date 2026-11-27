@@ -111,6 +111,20 @@ describe("exercise demo media helpers", () => {
 			expect(
 				buildSupabaseExerciseImageUrl("push-up/01.webp", "not-a-url"),
 			).toBeNull();
+			expect(
+				buildSupabaseExerciseImageUrl(
+					"push-up/01.webp",
+					"http://demo.supabase.co",
+				),
+			).toBeNull();
+			expect(
+				buildSupabaseExerciseImageUrl(
+					"push-up/01.webp",
+					"http://127.0.0.1:54321",
+				),
+			).toBe(
+				"http://127.0.0.1:54321/storage/v1/object/public/exercise-media/push-up/01.webp",
+			);
 		});
 
 		it("returns null for invalid or path-traversal keys", () => {

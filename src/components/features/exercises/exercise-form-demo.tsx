@@ -204,6 +204,7 @@ export function ExerciseFormDemo({ exercise }: ExerciseFormDemoProps) {
 									ref={handleImgRef}
 									src={currentImageUrl}
 									alt={`${exercise.name} — ${frameLabel}`}
+									crossOrigin="anonymous"
 									loading="lazy"
 									decoding="async"
 									onLoad={() => {
