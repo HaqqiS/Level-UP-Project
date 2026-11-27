@@ -25,6 +25,8 @@ export type CuratedSeedExercise = {
 	equipment: string[];
 	measure: "REPS" | "SECONDS";
 	cues: string[];
+	demoVideoId?: string;
+	demoImages?: string[];
 	contraindications: string[];
 	branchKey: string;
 	muscles: ExerciseMuscleEntry[];
