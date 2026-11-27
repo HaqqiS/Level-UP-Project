@@ -222,6 +222,8 @@ model Exercise {
   equipment         String[]
   measure           ExerciseMeasure @default(REPS)
   cues                  String[]
+  demoVideoId           String?
+  demoImages            String[]        @default([])
   contraindications     String[]
   primaryMuscles        String[]        @default([])
   secondaryMuscles      String[]        @default([])

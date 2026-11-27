@@ -21,6 +21,8 @@ async function ExercisesContent() {
 				equipment: true,
 				measure: true,
 				cues: true,
+				demoVideoId: true,
+				demoImages: true,
 				contraindications: true,
 				primaryMuscles: true,
 				secondaryMuscles: true,

@@ -10,6 +10,8 @@ export type ExerciseItem = {
 	equipment: string[];
 	measure: "REPS" | "SECONDS";
 	cues: string[];
+	demoVideoId?: string | null;
+	demoImages?: string[];
 	contraindications: string[];
 	primaryMuscles: string[];
 	secondaryMuscles: string[];
